@@ -27,13 +27,15 @@ export const CAMPAIGN_TIMEZONE = "Africa/Lagos";
 
 // ---- Tiers -----------------------------------------------------------------
 
+// Ordered largest to smallest so every tier list (landing cards, sign-up
+// dropdown, filters) shows the biggest partnership first.
 export const TIERS = [
-  "100000",
-  "200000",
-  "300000",
-  "500000",
-  "1000000",
   "2000000_plus",
+  "1000000",
+  "500000",
+  "300000",
+  "200000",
+  "100000",
 ] as const;
 
 export type Tier = (typeof TIERS)[number];
