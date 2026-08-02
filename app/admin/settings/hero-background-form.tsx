@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,14 +83,13 @@ export function HeroBackgroundForm({
       <div className="overflow-hidden rounded-xl border border-emerge-line bg-emerge-paper">
         {currentUrl ? (
           <div className="relative aspect-[16/7] w-full">
-            {/* Preview of the current background. */}
-            <Image
+            {/* Preview of the current background. Plain <img> so any storage
+                host works without Next image-domain configuration. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={currentUrl}
               alt="Current home page background"
-              fill
-              sizes="(max-width: 768px) 100vw, 640px"
-              className="object-cover"
-              unoptimized
+              className="absolute inset-0 h-full w-full object-cover"
             />
           </div>
         ) : (
