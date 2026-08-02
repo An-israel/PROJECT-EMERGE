@@ -97,6 +97,29 @@ export function validateFile(file: {
   return null;
 }
 
+/** Image-only assets (e.g. the landing page background). No PDF. */
+export const ALLOWED_IMAGE_MIME = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+export const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB — backgrounds can be large
+
+export function validateImageFile(file: {
+  type: string;
+  size: number;
+}): string | null {
+  if (
+    !ALLOWED_IMAGE_MIME.includes(file.type as (typeof ALLOWED_IMAGE_MIME)[number])
+  ) {
+    return "Background must be a JPEG, PNG, or WEBP image.";
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return "Image must be 8MB or smaller.";
+  }
+  return null;
+}
+
 export const partnerSettingsSchema = z.object({
   fullName: z.string().trim().min(2, "Enter your full name"),
   phone: z.string().trim().min(7, "Enter a valid phone number").max(20),

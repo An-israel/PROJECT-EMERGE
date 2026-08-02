@@ -16,40 +16,87 @@ export default async function LandingPage() {
       <SiteHeader />
 
       {/* HERO */}
-      <section className="relative overflow-hidden border-b border-emerge-line bg-emerge-paper">
-        <div className="container relative py-20 sm:py-28">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerge-red">
-            Ideal Life City
-          </p>
-          <h1 className="display-title mt-3 text-5xl text-emerge-ink sm:text-7xl lg:text-8xl">
-            Project Emerge
-          </h1>
-          <p className="mt-4 text-xl font-semibold text-emerge-green">
-            {settings.campaign_subtitle}
-          </p>
-          <p className="mt-2 font-mono text-sm uppercase tracking-widest text-emerge-ink/60">
-            {settings.scripture}
-          </p>
-          <p className="mt-6 max-w-2xl text-balance text-lg text-emerge-ink/80">
-            We are building a permanent tent and securing land for the work
-            ahead. This is our house, rising in our time, built by our hands
-            together.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Button asChild size="lg">
-              <Link href="/signup">
-                Become a Partner <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Link
-              href="/login"
-              className="text-sm font-semibold text-emerge-ink/70 underline-offset-4 hover:text-emerge-ink hover:underline"
-            >
-              I already have an account
-            </Link>
-          </div>
-        </div>
-      </section>
+      {(() => {
+        const hasImage = Boolean(settings.hero_image_url);
+        return (
+          <section
+            className={`relative overflow-hidden border-b border-emerge-line ${
+              hasImage ? "bg-emerge-ink text-white" : "bg-emerge-paper"
+            }`}
+          >
+            {hasImage && (
+              <>
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{ backgroundImage: `url(${settings.hero_image_url})` }}
+                />
+                {/* Soft dark scrim keeps the text readable over any photo. */}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-gradient-to-r from-emerge-ink/85 via-emerge-ink/65 to-emerge-ink/40"
+                />
+              </>
+            )}
+            <div className="container relative py-20 sm:py-28">
+              <p
+                className={`text-xs font-semibold uppercase tracking-[0.3em] ${
+                  hasImage ? "text-emerge-gold" : "text-emerge-red"
+                }`}
+              >
+                Ideal Life City
+              </p>
+              <h1
+                className={`display-title mt-3 text-5xl sm:text-7xl lg:text-8xl ${
+                  hasImage ? "text-white" : "text-emerge-ink"
+                }`}
+              >
+                Project Emerge
+              </h1>
+              <p
+                className={`mt-4 text-xl font-semibold ${
+                  hasImage ? "text-emerge-green-bright" : "text-emerge-green"
+                }`}
+              >
+                {settings.campaign_subtitle}
+              </p>
+              <p
+                className={`mt-2 font-mono text-sm uppercase tracking-widest ${
+                  hasImage ? "text-white/70" : "text-emerge-ink/60"
+                }`}
+              >
+                {settings.scripture}
+              </p>
+              <p
+                className={`mt-6 max-w-2xl text-balance text-lg ${
+                  hasImage ? "text-white/85" : "text-emerge-ink/80"
+                }`}
+              >
+                We are building a permanent tent and securing land for the work
+                ahead. This is our house, rising in our time, built by our hands
+                together.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Button asChild size="lg">
+                  <Link href="/signup">
+                    Become a Partner <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Link
+                  href="/login"
+                  className={`text-sm font-semibold underline-offset-4 hover:underline ${
+                    hasImage
+                      ? "text-white/80 hover:text-white"
+                      : "text-emerge-ink/70 hover:text-emerge-ink"
+                  }`}
+                >
+                  I already have an account
+                </Link>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* VISION */}
       <section className="container py-16 sm:py-20">

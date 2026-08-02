@@ -15,6 +15,7 @@ import {
   rejectReceiptSchema,
   contactLogSchema,
   adminSettingsSchema,
+  validateImageFile,
 } from "@/lib/validation";
 import type { Installment, Receipt } from "@/lib/supabase/types";
 
@@ -283,6 +284,99 @@ export async function updateAdminSettingsAction(
     })
     .eq("id", 1);
   if (error) return { error: "Could not save settings." };
+  revalidatePath("/admin/settings");
+  revalidatePath("/");
+  return { success: true };
+}
+
+const BRANDING_BUCKET = "branding";
+
+/** Extract the object path within the branding bucket from a stored public URL. */
+function brandingPathFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  const marker = `/${BRANDING_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return url.slice(idx + marker.length);
+}
+
+/** Upload a landing-page hero background and store its public URL in settings. */
+export async function uploadHeroBackgroundAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  const admin = await ensureAdmin();
+  if (!admin) return { error: "Not authorized." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Please choose an image to upload." };
+  }
+  const fileError = validateImageFile({ type: file.type, size: file.size });
+  if (fileError) return { error: fileError };
+
+  const db = createAdminClient();
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const path = `hero/${Date.now()}-background.${ext}`;
+
+  const { error: uploadErr } = await db.storage
+    .from(BRANDING_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (uploadErr) {
+    return { error: "We could not upload the image. Please try again." };
+  }
+
+  const {
+    data: { publicUrl },
+  } = db.storage.from(BRANDING_BUCKET).getPublicUrl(path);
+
+  // Read the current URL so we can clean up the old file after a successful swap.
+  const { data: current } = await db
+    .from("settings")
+    .select("hero_image_url")
+    .eq("id", 1)
+    .single();
+
+  const { error: saveErr } = await db
+    .from("settings")
+    .update({ hero_image_url: publicUrl, updated_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (saveErr) {
+    await db.storage.from(BRANDING_BUCKET).remove([path]); // roll back the upload
+    return { error: "We could not save the background. Please try again." };
+  }
+
+  const oldPath = brandingPathFromUrl(current?.hero_image_url ?? null);
+  if (oldPath && oldPath !== path) {
+    await db.storage.from(BRANDING_BUCKET).remove([oldPath]);
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/");
+  return { success: true };
+}
+
+/** Remove the hero background so the landing page returns to the paper look. */
+export async function removeHeroBackgroundAction(): Promise<AdminActionState> {
+  const admin = await ensureAdmin();
+  if (!admin) return { error: "Not authorized." };
+
+  const db = createAdminClient();
+  const { data: current } = await db
+    .from("settings")
+    .select("hero_image_url")
+    .eq("id", 1)
+    .single();
+
+  const { error } = await db
+    .from("settings")
+    .update({ hero_image_url: null, updated_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (error) return { error: "Could not remove the background." };
+
+  const oldPath = brandingPathFromUrl(current?.hero_image_url ?? null);
+  if (oldPath) await db.storage.from(BRANDING_BUCKET).remove([oldPath]);
+
   revalidatePath("/admin/settings");
   revalidatePath("/");
   return { success: true };

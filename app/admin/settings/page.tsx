@@ -3,6 +3,7 @@ import { getFullSettings } from "@/lib/settings";
 import { getAllUsers } from "@/lib/admin-data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AdminSettingsForm } from "./settings-form";
+import { HeroBackgroundForm } from "./hero-background-form";
 import { UsersManager } from "./users-manager";
 
 export const metadata = { title: "Settings — Project Emerge" };
@@ -22,6 +23,15 @@ export default async function AdminSettingsPage() {
         </CardHeader>
         <CardContent>
           <AdminSettingsForm settings={settings} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Home page background</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <HeroBackgroundForm currentUrl={settings.hero_image_url} />
         </CardContent>
       </Card>
 
