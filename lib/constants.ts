@@ -22,6 +22,12 @@ export const CAMPAIGN = {
 
 export const SETTINGS_ROW_ID = 1;
 
+/** Default long-form landing copy (admin-editable; these are the fallbacks). */
+export const DEFAULT_HERO_BODY =
+  "We are building a permanent tent and securing land for the work ahead. This is our house, rising in our time, built by our hands together.";
+export const DEFAULT_VISION_BODY =
+  "Phase One of Project Emerge is focused and clear. We are raising the funds to build our tent and to lease and acquire landed property for Ideal Life City. Every partnership, at every level, moves this building from vision to ground. You are not giving to a project. You are building a house that will stand.";
+
 /** Fixed timezone for all "today"/due-date math (Nigeria). */
 export const CAMPAIGN_TIMEZONE = "Africa/Lagos";
 

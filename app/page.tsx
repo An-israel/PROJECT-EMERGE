@@ -4,7 +4,12 @@ import { Card } from "@/components/ui/card";
 import { SiteHeader } from "@/components/site-header";
 import { getPublicSettings } from "@/lib/settings";
 import { getHonorRollNames } from "@/lib/public-data";
-import { TIERS, TIER_LABELS } from "@/lib/constants";
+import {
+  TIERS,
+  TIER_LABELS,
+  DEFAULT_HERO_BODY,
+  DEFAULT_VISION_BODY,
+} from "@/lib/constants";
 import { ArrowRight } from "lucide-react";
 
 export default async function LandingPage() {
@@ -72,9 +77,7 @@ export default async function LandingPage() {
                   hasImage ? "text-white/85" : "text-emerge-ink/80"
                 }`}
               >
-                We are building a permanent tent and securing land for the work
-                ahead. This is our house, rising in our time, built by our hands
-                together.
+                {settings.hero_body || DEFAULT_HERO_BODY}
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Button asChild size="lg">
@@ -103,12 +106,8 @@ export default async function LandingPage() {
         <h2 className="display-title text-3xl text-emerge-red sm:text-4xl">
           Why We Are Building
         </h2>
-        <p className="mt-5 max-w-3xl text-balance text-lg leading-relaxed text-emerge-ink/90">
-          Phase One of Project Emerge is focused and clear. We are raising the
-          funds to build our tent and to lease and acquire landed property for
-          Ideal Life City. Every partnership, at every level, moves this
-          building from vision to ground. You are not giving to a project. You
-          are building a house that will stand.
+        <p className="mt-5 max-w-3xl whitespace-pre-line text-balance text-lg leading-relaxed text-emerge-ink/90">
+          {settings.vision_body || DEFAULT_VISION_BODY}
         </p>
       </section>
 

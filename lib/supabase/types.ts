@@ -77,6 +77,8 @@ export interface Settings {
   bank_account_number: string;
   bank_name: string;
   hero_image_url: string | null;
+  hero_body: string | null;
+  vision_body: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   contact_address: string | null;

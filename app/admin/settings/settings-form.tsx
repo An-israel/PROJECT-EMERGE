@@ -5,11 +5,13 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import {
   updateAdminSettingsAction,
   type AdminActionState,
 } from "@/app/admin/actions";
+import { DEFAULT_HERO_BODY, DEFAULT_VISION_BODY } from "@/lib/constants";
 import type { Settings } from "@/lib/supabase/types";
 
 export function AdminSettingsForm({ settings }: { settings: Settings }) {
@@ -48,6 +50,27 @@ export function AdminSettingsForm({ settings }: { settings: Settings }) {
         type="number"
         defaultValue={String(Number(settings.goal))}
       />
+
+      <div className="border-t border-emerge-line pt-4">
+        <h3 className="mb-1 text-sm font-semibold">Home page text</h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          The two long paragraphs on the public home page. Clear a box to
+          restore the original wording.
+        </p>
+        <div className="space-y-4">
+          <TextAreaField
+            name="heroBody"
+            label="Hero paragraph (under the title)"
+            defaultValue={settings.hero_body ?? DEFAULT_HERO_BODY}
+          />
+          <TextAreaField
+            name="visionBody"
+            label="“Why We Are Building” paragraph"
+            defaultValue={settings.vision_body ?? DEFAULT_VISION_BODY}
+            rows={6}
+          />
+        </div>
+      </div>
 
       <div className="border-t border-emerge-line pt-4">
         <h3 className="mb-3 text-sm font-semibold">Bank details</h3>
@@ -148,6 +171,25 @@ function Field({
         defaultValue={defaultValue}
         required={required}
       />
+    </div>
+  );
+}
+
+function TextAreaField({
+  name,
+  label,
+  defaultValue,
+  rows = 3,
+}: {
+  name: string;
+  label: string;
+  defaultValue: string;
+  rows?: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={name}>{label}</Label>
+      <Textarea id={name} name={name} rows={rows} defaultValue={defaultValue} />
     </div>
   );
 }

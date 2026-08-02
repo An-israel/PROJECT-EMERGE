@@ -131,6 +131,8 @@ export const adminSettingsSchema = z.object({
   campaignTitle: z.string().trim().min(1),
   campaignSubtitle: z.string().trim().min(1),
   scripture: z.string().trim().min(1),
+  heroBody: z.string().trim().max(1000).optional().or(z.literal("")),
+  visionBody: z.string().trim().max(2000).optional().or(z.literal("")),
   goal: z.number().positive(),
   bankAccountName: z.string().trim().min(1),
   bankAccountNumber: z.string().trim().min(1),
