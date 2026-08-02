@@ -9,9 +9,11 @@ alter table public.settings
 
 -- ---------------------------------------------------------------------------
 -- 2) Expose it on the public-safe settings view (still NO goal/totals).
---    The view is recreated to add the column.
+--    Dropped and recreated because CREATE OR REPLACE VIEW cannot insert a new
+--    column in the middle of the existing column list.
 -- ---------------------------------------------------------------------------
-create or replace view public.public_settings
+drop view if exists public.public_settings;
+create view public.public_settings
 with (security_invoker = false) as
   select
     campaign_title,
