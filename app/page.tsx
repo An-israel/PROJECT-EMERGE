@@ -16,25 +16,21 @@ export default async function LandingPage() {
       <SiteHeader />
 
       {/* HERO */}
-      <section className="relative overflow-hidden bg-emerge-ink text-white">
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-br from-emerge-red-deep via-emerge-ink to-emerge-ink"
-        />
+      <section className="relative overflow-hidden border-b border-emerge-line bg-emerge-paper">
         <div className="container relative py-20 sm:py-28">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerge-gold">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerge-red">
             Ideal Life City
           </p>
-          <h1 className="display-title mt-3 text-5xl sm:text-7xl lg:text-8xl">
+          <h1 className="display-title mt-3 text-5xl text-emerge-ink sm:text-7xl lg:text-8xl">
             Project Emerge
           </h1>
-          <p className="mt-4 text-xl font-semibold text-emerge-green-bright">
+          <p className="mt-4 text-xl font-semibold text-emerge-green">
             {settings.campaign_subtitle}
           </p>
-          <p className="mt-2 font-mono text-sm uppercase tracking-widest text-white/70">
+          <p className="mt-2 font-mono text-sm uppercase tracking-widest text-emerge-ink/60">
             {settings.scripture}
           </p>
-          <p className="mt-6 max-w-2xl text-balance text-lg text-white/85">
+          <p className="mt-6 max-w-2xl text-balance text-lg text-emerge-ink/80">
             We are building a permanent tent and securing land for the work
             ahead. This is our house, rising in our time, built by our hands
             together.
@@ -47,7 +43,7 @@ export default async function LandingPage() {
             </Button>
             <Link
               href="/login"
-              className="text-sm font-semibold text-white/80 underline-offset-4 hover:text-white hover:underline"
+              className="text-sm font-semibold text-emerge-ink/70 underline-offset-4 hover:text-emerge-ink hover:underline"
             >
               I already have an account
             </Link>
