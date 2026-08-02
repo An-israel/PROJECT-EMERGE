@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { formatNaira, formatDate } from "@/lib/format";
 
 export const metadata = { title: "Control room — Project Emerge" };
+// Always recompute totals from the latest data — never serve a cached snapshot.
+export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
   const { aggregate, goal, partners } = await getAdminOverview();
@@ -17,6 +19,10 @@ export default async function AdminHome() {
     .filter((p) => p.status === "behind")
     .sort((a, b) => b.behindBy - a.behindBy);
 
+  // Everything partners have reported sending = approved + still-pending
+  // receipts (rejected ones are excluded). Recomputed live on every load.
+  const totalSent = aggregate.totalVerified + aggregate.totalPending;
+
   return (
     <div className="space-y-8">
       <div>
@@ -24,6 +30,43 @@ export default async function AdminHome() {
         <p className="text-muted-foreground">
           The full picture — visible to admins only.
         </p>
+      </div>
+
+      {/* Headline totals — pledged vs. sent (auto-updates as partners upload) */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Total pledged
+            </div>
+            <div className="mt-1 font-mono text-3xl font-bold text-emerge-ink">
+              {formatNaira(aggregate.totalPledged)}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              What all partners have committed to give.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Total sent (receipts uploaded)
+            </div>
+            <div className="mt-1 font-mono text-3xl font-bold text-emerge-green">
+              {formatNaira(totalSent)}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              <span className="font-mono">
+                {formatNaira(aggregate.totalVerified)}
+              </span>{" "}
+              approved ·{" "}
+              <span className="font-mono">
+                {formatNaira(aggregate.totalPending)}
+              </span>{" "}
+              awaiting review
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Thermometer */}
@@ -37,6 +80,10 @@ export default async function AdminHome() {
             goal={goal}
             goalPct={aggregate.goalPct}
           />
+          <p className="mt-3 text-xs text-muted-foreground">
+            The thermometer counts approved receipts only. Pending uploads are
+            included in “Total sent” above until you approve or reject them.
+          </p>
         </CardContent>
       </Card>
 
