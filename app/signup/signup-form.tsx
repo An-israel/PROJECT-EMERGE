@@ -44,9 +44,12 @@ export function SignUpForm({
   );
 
   const [step, setStep] = React.useState(1);
-  const [tier, setTier] = React.useState<Tier>(initialTier ?? "100000");
+  // Default to the largest tier (₦2,000,000 and above) when none was chosen
+  // from a landing-page link, pre-filled to the minimum so it's valid on load.
+  const [tier, setTier] = React.useState<Tier>(initialTier ?? "2000000_plus");
   const [plan, setPlan] = React.useState<Plan>("one_time");
-  const [customAmount, setCustomAmount] = React.useState<string>("");
+  const [customAmount, setCustomAmount] =
+    React.useState<string>(String(CUSTOM_TIER_MINIMUM));
   const [showHonor, setShowHonor] = React.useState(false);
 
   const isCustom = tier === "2000000_plus";
