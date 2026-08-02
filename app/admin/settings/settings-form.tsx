@@ -67,6 +67,34 @@ export function AdminSettingsForm({ settings }: { settings: Settings }) {
       </div>
 
       <div className="border-t border-emerge-line pt-4">
+        <h3 className="mb-1 text-sm font-semibold">Footer contact details</h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Shown in the footer of the public home page. Leave a field blank to
+          hide that line.
+        </p>
+        <div className="space-y-4">
+          <Field
+            name="contactPhone"
+            label="Contact phone"
+            defaultValue={settings.contact_phone ?? ""}
+            required={false}
+          />
+          <Field
+            name="contactEmail"
+            label="Contact email"
+            defaultValue={settings.contact_email ?? ""}
+            required={false}
+          />
+          <Field
+            name="contactAddress"
+            label="Contact address"
+            defaultValue={settings.contact_address ?? ""}
+            required={false}
+          />
+        </div>
+      </div>
+
+      <div className="border-t border-emerge-line pt-4">
         <h3 className="mb-3 text-sm font-semibold">Timing rules</h3>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field
@@ -102,16 +130,24 @@ function Field({
   label,
   defaultValue,
   type = "text",
+  required = true,
 }: {
   name: string;
   label: string;
   defaultValue: string;
   type?: string;
+  required?: boolean;
 }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} type={type} defaultValue={defaultValue} required />
+      <Input
+        id={name}
+        name={name}
+        type={type}
+        defaultValue={defaultValue}
+        required={required}
+      />
     </div>
   );
 }

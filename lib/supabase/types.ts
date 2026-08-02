@@ -77,6 +77,9 @@ export interface Settings {
   bank_account_number: string;
   bank_name: string;
   hero_image_url: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  contact_address: string | null;
   one_time_grace_days: number;
   monthly_interval_months: number;
   behind_grace_days: number;

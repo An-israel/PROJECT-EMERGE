@@ -230,9 +230,18 @@ export default async function LandingPage() {
             <div>Project Emerge, Phase One</div>
           </div>
           <div className="text-xs">
-            <div>Contact: [add church phone]</div>
-            <div>Email: [add church email]</div>
-            <div>Address: [add church address]</div>
+            {settings.contact_phone && <div>Contact: {settings.contact_phone}</div>}
+            {settings.contact_email && <div>Email: {settings.contact_email}</div>}
+            {settings.contact_address && (
+              <div>Address: {settings.contact_address}</div>
+            )}
+            {!settings.contact_phone &&
+              !settings.contact_email &&
+              !settings.contact_address && (
+                <div className="text-muted-foreground">
+                  Add contact details in admin settings.
+                </div>
+              )}
           </div>
         </div>
       </footer>
