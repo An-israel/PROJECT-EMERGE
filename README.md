@@ -1,0 +1,129 @@
+# Project Emerge
+
+A partnership and fundraising platform for **Ideal Life City** church's
+_Project Emerge_ campaign. Partners choose an amount and a payment plan,
+transfer by bank, and upload receipts. Admins verify receipts, watch progress,
+and reach out to partners who fall behind.
+
+- **Payment is manual** — bank transfer + receipt upload. No card/gateway.
+- **The public page never shows a total raised.** Aggregate totals and the
+  goal are admin-only.
+- **Honor roll shows names only** (never amounts), and only for partners who opt in.
+
+Built with **Next.js (App Router) + TypeScript + Tailwind + shadcn/ui** on
+**Supabase** (Postgres, Auth, Storage), with **Resend** for optional email.
+
+---
+
+## Quick start (local)
+
+```bash
+pnpm install
+cp .env.example .env.local     # then fill in your Supabase keys
+# run migrations + seed (see below)
+pnpm dev                       # http://localhost:3000
+```
+
+### 1. Create a Supabase project
+
+At [supabase.com](https://supabase.com), create a project. From
+**Settings → API**, copy into `.env.local`:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server only — never exposed to the browser)
+
+### 2. Run the migration
+
+The schema, RLS policies, `is_admin()` helper, the private `receipts` storage
+bucket and its policies, and the sign-up/receipt RPCs all live in one file:
+
+```
+supabase/migrations/0001_init.sql
+```
+
+Apply it either with the Supabase CLI (`supabase db push`) or by pasting the
+file into the **SQL Editor** and running it.
+
+### 3. Seed settings + the first admin
+
+```bash
+# set these first (in .env.local), or accept the documented default password:
+#   SEED_ADMIN_EMAIL=admin@ideallifecity.org
+#   SEED_ADMIN_PASSWORD=your-strong-password
+pnpm seed            # settings row + one admin user
+pnpm seed --demo     # ALSO create demo partners (never in production)
+```
+
+If `SEED_ADMIN_PASSWORD` is not set, a default is used and a warning is printed
+— **change it immediately after first login.**
+
+---
+
+## For the church admin (non-technical)
+
+- **Log in** at `/login` with the admin email and password created during seed.
+- **Change the bank details or campaign wording** any time under
+  **Settings** in the admin area — the whole app reads from there.
+- **Verify receipts** under **Receipts**: open the file, then Approve or
+  Reject (a reason is required so the partner knows what to fix).
+- **Reach a partner who is behind**: open them under **Partners**, use the
+  **Contact partner** panel to call, email, or copy a ready-made reminder, then
+  **Log contact** to keep a record.
+- **Promote another admin** under **Settings → Users**. The last remaining
+  admin can never be removed.
+
+---
+
+## Running the tests
+
+```bash
+pnpm test        # unit + integration (Vitest)
+pnpm test:e2e    # end-to-end (Playwright)
+pnpm verify      # typecheck + lint + unit/integration + e2e, in sequence
+```
+
+- **Unit tests** need nothing external and always run.
+- **Integration tests** need a real Supabase project. They **skip cleanly**
+  when `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are unset or
+  placeholders. Point them at a disposable test project to run them.
+- **E2E landing tests** run without a database (the landing page falls back to
+  seeded constants). The full partner→admin e2e flow runs when Supabase is
+  configured and `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` are set.
+- If your environment ships a pre-installed Chromium, set
+  `PLAYWRIGHT_CHROMIUM_PATH` to its binary; otherwise Playwright uses its own.
+
+---
+
+## Deploying to Vercel + Supabase
+
+1. Create the **Supabase** project; run `supabase/migrations/0001_init.sql`.
+   The migration also creates the private `receipts` bucket and its policies.
+2. Run `pnpm seed` against production (settings + first admin). Do **not** use
+   `--demo` in production.
+3. Create the **Vercel** project from this repo. Add every variable from
+   `.env.example` in **Project → Settings → Environment Variables**
+   (`SUPABASE_SERVICE_ROLE_KEY` is server-side only). Set
+   `NEXT_PUBLIC_SITE_URL` to your production URL.
+4. In Supabase **Auth → URL Configuration**, add your production URL to the
+   redirect allow-list (needed for password reset links).
+5. Deploy, then run a smoke test: open the landing page, sign up a partner,
+   upload a receipt, and approve it as admin.
+
+### Email (optional)
+
+Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` to send transactional emails
+(welcome, receipt received/approved/rejected, behind reminder). Without a key,
+the app logs the intended email to the server console and continues — no flow
+breaks.
+
+---
+
+## Notes
+
+- **Rate limiting** is a lightweight in-memory limiter, fine for a single
+  region. To scale horizontally, back `lib/rate-limit.ts` with a shared store.
+- **Time**: "today" and all due-date math run in `Africa/Lagos`; due/transfer
+  dates are stored as plain `date` columns so no browser timezone shifts them.
+- See `DECISIONS.md` for assumptions made during the build and
+  `QA-CHECKLIST.md` for the manual QA results.

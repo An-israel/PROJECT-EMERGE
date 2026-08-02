@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand tokens (spec section 4) */
+    --emerge-red: #c81e1e;
+    --emerge-red-deep: #7a0f0f;
+    --emerge-green: #128a3a;
+    --emerge-green-bright: #16c154;
+    --emerge-ink: #0b0b0b;
+    --emerge-paper: #fbfaf6;
+    --emerge-line: #e7e4db;
+    --emerge-gold: #c9a227;
+
+    /* shadcn tokens mapped to the brand */
+    --background: 48 33% 97%; /* paper */
+    --foreground: 0 0% 4%; /* ink */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 0 74% 45%; /* red */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 142 77% 30%; /* green */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 48 20% 92%;
+    --muted-foreground: 0 0% 32%;
+    --accent: 142 77% 30%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 74% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 20% 88%; /* line */
+    --input: 40 20% 88%;
+    --ring: 0 74% 45%;
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  /* Money and figures read with tabular numerals. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Always-visible keyboard focus (quality floor). */
+  :focus-visible {
+    outline: 2px solid var(--emerge-red);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .display-title {
+    font-family: var(--font-anton), sans-serif;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 0.95;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Respect reduced motion: disable the rising animation and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .rise-column-fill {
+    transition: none !important;
+    animation: none !important;
+  }
+}
