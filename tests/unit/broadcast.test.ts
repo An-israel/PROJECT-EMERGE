@@ -16,19 +16,33 @@ function person(
   return {
     name: "Grace Okonkwo",
     email: `${overrides.id}@example.com`,
+    phone: "08031234567",
     role: "partner",
     status: "on_track",
     emailOptOut: false,
+    smsOptOut: false,
     ...overrides,
   };
 }
 
 const people: BroadcastRecipient[] = [
-  person({ id: "a", name: "Grace Okonkwo", status: "on_track" }),
-  person({ id: "b", name: "Tunde Bello", status: "behind" }),
-  person({ id: "c", name: "Ada Nwosu", status: "completed" }),
-  person({ id: "d", name: "Church Admin", role: "admin", status: null }),
-  person({ id: "e", name: "Opted Out", status: "behind", emailOptOut: true }),
+  person({ id: "a", name: "Grace Okonkwo", status: "on_track", phone: "08031111111" }),
+  person({ id: "b", name: "Tunde Bello", status: "behind", phone: "08032222222" }),
+  person({ id: "c", name: "Ada Nwosu", status: "completed", phone: "08033333333" }),
+  person({
+    id: "d",
+    name: "Church Admin",
+    role: "admin",
+    status: null,
+    phone: "08034444444",
+  }),
+  person({
+    id: "e",
+    name: "Opted Out",
+    status: "behind",
+    phone: "08035555555",
+    emailOptOut: true,
+  }),
 ];
 
 describe("selectRecipients", () => {
@@ -94,6 +108,52 @@ describe("audienceCounts", () => {
       on_track: 1,
       completed: 1,
     });
+  });
+
+  it("counts the SMS channel separately from email", () => {
+    // "e" opted out of email only, so they are textable but not emailable.
+    expect(audienceCounts(people, "sms").all).toBe(5);
+    expect(audienceCounts(people, "email").all).toBe(4);
+  });
+});
+
+describe("selectRecipients on the SMS channel", () => {
+  it("keys on the phone number, not the email address", () => {
+    const ids = selectRecipients(people, "all", "sms").map((p) => p.id);
+    expect(ids).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("honours the SMS opt-out independently of the email one", () => {
+    const mixed = [
+      person({ id: "p", phone: "08037777777", smsOptOut: true }),
+      person({ id: "q", phone: "08038888888", emailOptOut: true }),
+    ];
+    expect(selectRecipients(mixed, "all", "sms").map((p) => p.id)).toEqual([
+      "q",
+    ]);
+    expect(selectRecipients(mixed, "all", "email").map((p) => p.id)).toEqual([
+      "p",
+    ]);
+  });
+
+  it("drops numbers that cannot be dialled", () => {
+    const messy = [
+      person({ id: "r", phone: "" }),
+      person({ id: "s", phone: "12" }),
+      person({ id: "t", phone: "0803 123 4567" }),
+    ];
+    expect(selectRecipients(messy, "all", "sms").map((p) => p.id)).toEqual([
+      "t",
+    ]);
+  });
+
+  it("texts one person once, however their number was typed", () => {
+    const dupes = [
+      person({ id: "u", phone: "08031234567" }),
+      person({ id: "v", phone: "+234 803 123 4567" }),
+      person({ id: "w", phone: "234-803-123-4567" }),
+    ];
+    expect(selectRecipients(dupes, "all", "sms")).toHaveLength(1);
   });
 });
 

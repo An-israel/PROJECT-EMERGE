@@ -83,6 +83,39 @@ non-technical church admin and note it here.
   in-memory limiter as the rest of the app — a guard against a double-click or
   a slipped finger mailing everyone twice.
 
+## Bulk SMS
+
+- **Provider-agnostic, two gateways included.** `lib/sms.ts` mirrors
+  `lib/email.ts`: Termii (default) and Africa's Talking, chosen with
+  `SMS_PROVIDER`, both common in Nigeria and both supporting a registered
+  alphanumeric sender name. Adding a third is one function. The church is not
+  locked to whichever account they open first.
+- **Numbers are normalised, not trusted.** Partners type `08031234567`,
+  `+234 803 123 4567`, or `234-803-123-4567`; `lib/phone.ts` converts each to
+  E.164 before sending and uses that as the de-duplication key, so one person
+  with two accounts is texted once. A number that cannot be dialled is
+  reported and skipped rather than sent and silently lost.
+- **Sender ID is 11 characters, and that is a GSM limit.** `Project Emerge` is
+  14 and would be rejected, so the default is `ProjEmerge`; the README says it
+  must be registered with the provider before it works.
+- **Cost is shown before sending, not after.** SMS is billed per 160-character
+  part per recipient, and one `₦`, emoji, or curly quote flips the message to
+  UCS-2 and cuts each part to 70 characters. `smsCost()` computes parts and
+  encoding, and the compose box shows "N parts × M people" in the confirm
+  dialog. Unit tested at the 160/153 and 70/67 boundaries.
+- **One text per recipient**, sent individually with a short pause, because
+  each message is personalised. A failed number is recorded against itself and
+  the rest still go.
+- **A separate opt-out from email** (`profiles.sms_opt_out`). Someone may
+  welcome an email newsletter and not want texts; the two are independent.
+  Copying numbers respects it by default, with a deliberate opt-in to include
+  those who opted out (for a personal call, not a blast) — because copied
+  numbers leave the app and its consent rules behind.
+- **Copying numbers is a first-class feature**, not a workaround: it is how
+  the church can use a gateway's own dashboard, or build a WhatsApp broadcast
+  list, without exporting the whole database. Numbers copy in E.164, comma
+  separated — what every gateway accepts.
+
 ## Rate limiting
 
 - Sign-up and receipt-upload endpoints use a lightweight in-memory fixed-window

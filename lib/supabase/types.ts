@@ -1,7 +1,7 @@
 /**
  * Hand-written database types. Kept small and focused on what the app reads.
  */
-import type { BroadcastAudience } from "@/lib/broadcast";
+import type { BroadcastAudience, BroadcastChannel } from "@/lib/broadcast";
 import type {
   Tier,
   Plan,
@@ -20,8 +20,10 @@ export interface Profile {
   role: Role;
   show_on_honor_roll: boolean;
   honor_roll_name: string | null;
-  /** Opted out of broadcast announcements. Transactional mail still sends. */
+  /** Opted out of email announcements. Transactional mail still sends. */
   email_opt_out: boolean;
+  /** Opted out of SMS announcements. */
+  sms_opt_out: boolean;
   created_at: string;
 }
 
@@ -73,8 +75,10 @@ export interface ContactLog {
 export interface Broadcast {
   id: string;
   sent_by: string | null;
+  channel: BroadcastChannel;
   audience: BroadcastAudience;
-  subject: string;
+  /** Null for SMS — a text message has no subject line. */
+  subject: string | null;
   body: string;
   recipient_count: number;
   sent_count: number;

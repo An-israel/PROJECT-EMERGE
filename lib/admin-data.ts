@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { computeProgress, computeAggregate } from "@/lib/progress";
 import { todayInCampaignTZ } from "@/lib/time";
 import { getFullSettings } from "@/lib/settings";
-import type { BroadcastRecipient } from "@/lib/broadcast";
+import type { BroadcastChannel, BroadcastRecipient } from "@/lib/broadcast";
 import type {
   Partnership,
   Installment,
@@ -259,22 +259,27 @@ export async function getBroadcastRecipients(): Promise<BroadcastRecipient[]> {
     id: u.id,
     name: u.full_name,
     email: u.email,
+    phone: u.phone,
     role: u.role,
     status: statusById.get(u.id) ?? null,
     emailOptOut: u.email_opt_out ?? false,
+    smsOptOut: u.sms_opt_out ?? false,
   }));
 }
 
-/** Most recent broadcasts, with the admin who sent each one. */
+/** Most recent broadcasts on one channel, with the admin who sent each. */
 export async function getRecentBroadcasts(
+  channel?: BroadcastChannel,
   limit = 10,
 ): Promise<Array<Broadcast & { sender_name?: string }>> {
   const admin = createAdminClient();
-  const { data } = await admin
+  let query = admin
     .from("broadcasts")
     .select("*, sender:profiles!broadcasts_sent_by_fkey(full_name)")
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (channel) query = query.eq("channel", channel);
+  const { data } = await query;
   return (data ?? []).map(
     (b: Broadcast & { sender?: { full_name: string } | null }) => ({
       ...b,

@@ -46,6 +46,7 @@ supabase/migrations/0002_hero_background.sql
 supabase/migrations/0003_footer_contact.sql
 supabase/migrations/0004_landing_copy.sql
 supabase/migrations/0005_broadcasts.sql  broadcast log + email opt-out
+supabase/migrations/0006_sms_broadcasts.sql  SMS channel + SMS opt-out
 ```
 
 Apply them **in order**, either with the Supabase CLI (`supabase db push`) or by
@@ -77,11 +78,19 @@ If `SEED_ADMIN_PASSWORD` is not set, a default is used and a warning is printed
 - **Reach a partner who is behind**: open them under **Partners**, use the
   **Contact partner** panel to call, email, or copy a ready-made reminder, then
   **Log contact** to keep a record.
-- **Email everyone** under **Email**: pick who it goes to (everyone, partners
-  only, admins only, or partners who are behind / on track / completed), write
-  the message, send yourself a test, then send. Type `{{name}}` or
-  `{{first_name}}` and each person sees their own name. Every send is listed
-  under **Recent broadcasts**.
+- **Reach everyone** under **Reach everyone**, which has three tabs:
+  - **Email** — pick who it goes to (everyone, partners only, admins only, or
+    partners who are behind / on track / completed), write the message, send
+    yourself a test, then send. Type `{{name}}` or `{{first_name}}` and each
+    person sees their own name.
+  - **Text message** — the same, by SMS. The compose box shows how many parts
+    the text costs and what the whole send will cost before you send it.
+  - **Phone numbers** — copy every number in a group to the clipboard in the
+    form SMS gateways expect (`+234…`, comma separated), or download them as a
+    CSV with names and emails. Useful for sending from your gateway's own
+    dashboard, or for a WhatsApp broadcast list.
+
+  Every send is listed under **Recent broadcasts**.
 - **Promote another admin** under **Settings → Users**. The last remaining
   admin can never be removed.
 
@@ -137,6 +146,40 @@ within its rate limit. If a batch is rejected the messages in it are retried
 individually, so one bad address cannot silence the rest. Partners who untick
 **Email me campaign announcements** in their own settings are excluded from every
 broadcast; their receipt emails still send.
+
+### Bulk SMS (optional)
+
+Set `SMS_API_KEY` (and the variables below) to text partners from the
+**Reach everyone → Text message** tab. Without a key the app logs the intended
+texts and tells you plainly that nothing was sent — you can still copy the
+numbers from the **Phone numbers** tab and send from your gateway's dashboard.
+
+| Variable | Meaning |
+|---|---|
+| `SMS_PROVIDER` | `termii` (default) or `africastalking` |
+| `SMS_API_KEY` | Your gateway API key |
+| `SMS_SENDER_ID` | The name recipients see, e.g. `ProjEmerge` |
+| `SMS_USERNAME` | Africa's Talking only; ignored by Termii |
+
+Two things to know before your first send:
+
+1. **A sender ID is at most 11 characters** — that is a GSM limit, not ours.
+   `Project Emerge` (14) will be rejected; `ProjEmerge` or `IdealLife` fit. It
+   must also be **registered with your provider before it works** (Termii and
+   Africa's Talking both review sender names, usually in a day or two). Until
+   it is approved, texts either fail or arrive from a shortcode.
+2. **The ₦ sign, emoji, and curly quotes pasted from Word are not in the SMS
+   alphabet.** Any one of them cuts a message part from 160 characters to 70,
+   so a short text silently becomes three. The compose box shows this live —
+   write `N100,000` rather than `₦100,000` and keep it to one part.
+
+Numbers are normalised to international form before sending (`08031234567` →
+`+2348031234567`), so it does not matter how a partner typed theirs. Anyone
+whose number cannot be read as a phone number is reported and skipped, and
+partners who untick **Text me announcements** are excluded from every text.
+
+To add another gateway, implement one `send…` function in `lib/sms.ts` and add
+it to the `SmsProvider` union — the rest of the pipeline is provider-agnostic.
 
 ---
 

@@ -6,6 +6,11 @@
  * is unit tested without a database.
  */
 import type { DerivedStatus, Role } from "@/lib/constants";
+import { toE164 } from "@/lib/phone";
+
+/** A broadcast goes out over one channel at a time. */
+export const BROADCAST_CHANNELS = ["email", "sms"] as const;
+export type BroadcastChannel = (typeof BROADCAST_CHANNELS)[number];
 
 export const BROADCAST_AUDIENCES = [
   "all",
@@ -41,11 +46,14 @@ export interface BroadcastRecipient {
   id: string;
   name: string;
   email: string;
+  phone: string;
   role: Role;
   /** Derived partnership status, or null for a user with no partnership. */
   status: DerivedStatus | null;
-  /** Opted out of announcements (transactional mail still reaches them). */
+  /** Opted out of email announcements (receipt mail still reaches them). */
   emailOptOut: boolean;
+  /** Opted out of SMS announcements. */
+  smsOptOut: boolean;
 }
 
 /** Maximum messages per Resend batch call. */
@@ -54,31 +62,55 @@ export const BROADCAST_BATCH_SIZE = 100;
 export const MAX_SUBJECT_LENGTH = 120;
 export const MAX_BODY_LENGTH = 5000;
 
+/** Roughly three GSM-7 parts. Longer costs more and reads worse on a phone. */
+export const MAX_SMS_LENGTH = 480;
+
 /**
  * Who actually receives a broadcast: the audience filter, minus anyone who
- * opted out or has no usable email, de-duplicated by email address.
+ * opted out of this channel or has no usable address, de-duplicated so one
+ * person on two accounts is never messaged twice.
  */
 export function selectRecipients(
   people: BroadcastRecipient[],
   audience: BroadcastAudience,
+  channel: BroadcastChannel = "email",
 ): BroadcastRecipient[] {
   const seen = new Set<string>();
   const chosen: BroadcastRecipient[] = [];
 
   for (const person of people) {
-    if (person.emailOptOut) continue;
-    const email = person.email?.trim().toLowerCase();
-    if (!email || !email.includes("@")) continue;
     if (!matchesAudience(person, audience)) continue;
-    if (seen.has(email)) continue;
-    seen.add(email);
+
+    const key = reachableKey(person, channel);
+    if (!key || seen.has(key)) continue;
+
+    seen.add(key);
     chosen.push(person);
   }
 
   return chosen;
 }
 
-function matchesAudience(
+/**
+ * The de-duplication key for a channel — an email address or a canonical
+ * phone number — or null when this person cannot be reached on it.
+ */
+function reachableKey(
+  person: BroadcastRecipient,
+  channel: BroadcastChannel,
+): string | null {
+  if (channel === "sms") {
+    if (person.smsOptOut) return null;
+    // Key on the canonical number, so 0803… and +234803… are one person.
+    return toE164(person.phone);
+  }
+  if (person.emailOptOut) return null;
+  const email = person.email?.trim().toLowerCase();
+  return email && email.includes("@") ? email : null;
+}
+
+/** Does this person belong to the audience, ignoring reachability? */
+export function matchesAudience(
   person: BroadcastRecipient,
   audience: BroadcastAudience,
 ): boolean {
@@ -96,13 +128,14 @@ function matchesAudience(
   }
 }
 
-/** Recipient count for every audience, for the picker. */
+/** Recipient count for every audience on one channel, for the picker. */
 export function audienceCounts(
   people: BroadcastRecipient[],
+  channel: BroadcastChannel = "email",
 ): Record<BroadcastAudience, number> {
   const counts = {} as Record<BroadcastAudience, number>;
   for (const audience of BROADCAST_AUDIENCES) {
-    counts[audience] = selectRecipients(people, audience).length;
+    counts[audience] = selectRecipients(people, audience, channel).length;
   }
   return counts;
 }

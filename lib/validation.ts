@@ -3,6 +3,7 @@ import { TIERS, PLANS, CUSTOM_TIER_MINIMUM } from "@/lib/constants";
 import {
   BROADCAST_AUDIENCES,
   MAX_BODY_LENGTH,
+  MAX_SMS_LENGTH,
   MAX_SUBJECT_LENGTH,
 } from "@/lib/broadcast";
 
@@ -132,6 +133,8 @@ export const partnerSettingsSchema = z.object({
   honorRollName: z.string().trim().max(80).optional().or(z.literal("")),
   /** Opt IN to announcements; stored inverted as `email_opt_out`. */
   receiveAnnouncements: z.boolean().default(true),
+  /** Opt IN to text announcements; stored inverted as `sms_opt_out`. */
+  receiveSms: z.boolean().default(true),
 });
 
 /** Admin broadcast: an announcement emailed to a chosen audience. */
@@ -150,6 +153,18 @@ export const broadcastSchema = z.object({
 });
 
 export type BroadcastInput = z.infer<typeof broadcastSchema>;
+
+/** Admin bulk SMS. No subject — a text message is body only. */
+export const smsBroadcastSchema = z.object({
+  audience: z.enum(BROADCAST_AUDIENCES),
+  body: z
+    .string()
+    .trim()
+    .min(5, "Write a message of at least 5 characters")
+    .max(MAX_SMS_LENGTH, `Keep the text under ${MAX_SMS_LENGTH} characters`),
+});
+
+export type SmsBroadcastInput = z.infer<typeof smsBroadcastSchema>;
 
 export const adminSettingsSchema = z.object({
   campaignTitle: z.string().trim().min(1),

@@ -36,6 +36,7 @@ export default async function PartnerSettingsPage() {
             showOnHonorRoll={profile.show_on_honor_roll}
             honorRollName={profile.honor_roll_name}
             emailOptOut={profile.email_opt_out ?? false}
+            smsOptOut={profile.sms_opt_out ?? false}
           />
         </CardContent>
       </Card>
