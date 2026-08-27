@@ -17,6 +17,7 @@ export default async function AdminLayout({
           { href: "/admin", label: "Control room" },
           { href: "/admin/receipts", label: "Receipts" },
           { href: "/admin/partners", label: "Partners" },
+          { href: "/admin/broadcast", label: "Email" },
           { href: "/admin/honor-roll", label: "Honor roll" },
           { href: "/admin/settings", label: "Settings" },
         ]}

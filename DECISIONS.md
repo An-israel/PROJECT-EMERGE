@@ -54,6 +54,68 @@ non-technical church admin and note it here.
 - Resend is optional. When `RESEND_API_KEY` is absent, every send logs the
   intended email to the server console and returns success, so no flow throws.
 
+## Broadcast email
+
+- **Audiences, not a mailing list.** There is no separate subscriber table:
+  the audience is derived live from `profiles` plus the same progress math the
+  admin dashboard uses, so "partners who are behind" is always current at the
+  moment of sending.
+- **One message per recipient**, not one message with many recipients, so
+  addresses are never disclosed to each other and `{{name}}` /
+  `{{first_name}}` can be personalised. Sent in batches of 100 via Resend's
+  batch endpoint; a rejected batch is retried one message at a time so a single
+  bad address cannot silence the rest.
+- **Plain text in, escaped HTML out.** Admins compose plain text; blank lines
+  become paragraphs. No HTML is accepted from the compose box, so a pasted
+  fragment cannot break (or inject into) the email.
+- **Consent.** Partners can untick "Email me campaign announcements"
+  (`profiles.email_opt_out`), which excludes them from every broadcast in every
+  audience. Transactional mail about their own receipts ignores the flag — it
+  is not marketing.
+- **Honest reporting.** With no API key the app cannot deliver, so the send is
+  recorded as `skipped` and the admin is told the message was only logged.
+  Partial failures are recorded as `partial` with per-address counts, rather
+  than reported as a clean success.
+- **Every send is logged** to `broadcasts` (audience, subject, body, counts,
+  who sent it), so the church has a record of what went out. Test sends to
+  yourself are not logged — they are a preview, not a broadcast.
+- **Rate limited** to 5 broadcasts per admin per 10 minutes, using the same
+  in-memory limiter as the rest of the app — a guard against a double-click or
+  a slipped finger mailing everyone twice.
+
+## Bulk SMS
+
+- **Provider-agnostic, two gateways included.** `lib/sms.ts` mirrors
+  `lib/email.ts`: Termii (default) and Africa's Talking, chosen with
+  `SMS_PROVIDER`, both common in Nigeria and both supporting a registered
+  alphanumeric sender name. Adding a third is one function. The church is not
+  locked to whichever account they open first.
+- **Numbers are normalised, not trusted.** Partners type `08031234567`,
+  `+234 803 123 4567`, or `234-803-123-4567`; `lib/phone.ts` converts each to
+  E.164 before sending and uses that as the de-duplication key, so one person
+  with two accounts is texted once. A number that cannot be dialled is
+  reported and skipped rather than sent and silently lost.
+- **Sender ID is 11 characters, and that is a GSM limit.** `Project Emerge` is
+  14 and would be rejected, so the default is `ProjEmerge`; the README says it
+  must be registered with the provider before it works.
+- **Cost is shown before sending, not after.** SMS is billed per 160-character
+  part per recipient, and one `₦`, emoji, or curly quote flips the message to
+  UCS-2 and cuts each part to 70 characters. `smsCost()` computes parts and
+  encoding, and the compose box shows "N parts × M people" in the confirm
+  dialog. Unit tested at the 160/153 and 70/67 boundaries.
+- **One text per recipient**, sent individually with a short pause, because
+  each message is personalised. A failed number is recorded against itself and
+  the rest still go.
+- **A separate opt-out from email** (`profiles.sms_opt_out`). Someone may
+  welcome an email newsletter and not want texts; the two are independent.
+  Copying numbers respects it by default, with a deliberate opt-in to include
+  those who opted out (for a personal call, not a blast) — because copied
+  numbers leave the app and its consent rules behind.
+- **Copying numbers is a first-class feature**, not a workaround: it is how
+  the church can use a gateway's own dashboard, or build a WhatsApp broadcast
+  list, without exporting the whole database. Numbers copy in E.164, comma
+  separated — what every gateway accepts.
+
 ## Rate limiting
 
 - Sign-up and receipt-upload endpoints use a lightweight in-memory fixed-window

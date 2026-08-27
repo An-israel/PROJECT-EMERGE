@@ -97,3 +97,4 @@ export type PartnershipStatus = "active" | "completed" | "cancelled";
 export type Role = "partner" | "admin";
 export type DerivedStatus = "on_track" | "behind" | "completed";
 export type ContactMethod = "phone" | "email" | "whatsapp" | "other";
+export type BroadcastStatus = "sent" | "partial" | "failed" | "skipped";

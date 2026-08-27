@@ -19,6 +19,8 @@ interface Props {
   phone: string;
   showOnHonorRoll: boolean;
   honorRollName: string | null;
+  emailOptOut: boolean;
+  smsOptOut: boolean;
 }
 
 export function PartnerSettingsForm({
@@ -26,9 +28,13 @@ export function PartnerSettingsForm({
   phone,
   showOnHonorRoll,
   honorRollName,
+  emailOptOut,
+  smsOptOut,
 }: Props) {
   const { toast } = useToast();
   const [showHonor, setShowHonor] = React.useState(showOnHonorRoll);
+  const [announcements, setAnnouncements] = React.useState(!emailOptOut);
+  const [texts, setTexts] = React.useState(!smsOptOut);
   const [state, formAction, pending] = useActionState<
     ReceiptActionState,
     FormData
@@ -84,6 +90,35 @@ export function PartnerSettingsForm({
             />
           </div>
         )}
+      </div>
+      <div className="rounded-lg border border-emerge-line bg-emerge-paper p-4">
+        <label className="flex items-start gap-3">
+          <Checkbox
+            name="receiveAnnouncements"
+            checked={announcements}
+            onCheckedChange={setAnnouncements}
+            className="mt-0.5"
+          />
+          <span className="text-sm">
+            <span className="font-semibold">
+              Email me campaign announcements.
+            </span>{" "}
+            Updates about Project Emerge sent to everyone. Emails about your own
+            receipts are always sent.
+          </span>
+        </label>
+        <label className="mt-3 flex items-start gap-3 border-t border-emerge-line pt-3">
+          <Checkbox
+            name="receiveSms"
+            checked={texts}
+            onCheckedChange={setTexts}
+            className="mt-0.5"
+          />
+          <span className="text-sm">
+            <span className="font-semibold">Text me announcements.</span> The
+            same updates, sent to your phone as a text message.
+          </span>
+        </label>
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save changes"}

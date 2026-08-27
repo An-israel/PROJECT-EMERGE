@@ -42,7 +42,7 @@ const GREEN = "#128A3A";
 const INK = "#0B0B0B";
 const PAPER = "#FBFAF6";
 
-function shell(title: string, body: string): string {
+function shell(title: string, body: string, footerNote?: string): string {
   return `
   <div style="background:${PAPER};padding:24px;font-family:Inter,Arial,sans-serif;color:${INK};">
     <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #E7E4DB;border-radius:12px;overflow:hidden;">
@@ -56,6 +56,7 @@ function shell(title: string, body: string): string {
       </div>
       <div style="padding:16px 24px;border-top:1px solid #E7E4DB;font-size:12px;color:#666;">
         Building Together. Rising Visibly. &middot; Project Emerge, Phase One
+        ${footerNote ? `<div style="margin-top:8px;">${footerNote}</div>` : ""}
       </div>
     </div>
   </div>`;
@@ -185,4 +186,134 @@ export async function sendBehindReminderEmail(data: {
     subject: "A gentle reminder from Project Emerge",
     html: shell("We are building together", body),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Broadcast (announcement to many registered users)
+// ---------------------------------------------------------------------------
+
+export interface BroadcastEmailMessage {
+  to: string;
+  subject: string;
+  html: string;
+}
+
+export interface BroadcastSendResult {
+  attempted: number;
+  sent: number;
+  failed: number;
+  /** True when RESEND_API_KEY is unset: nothing was delivered, only logged. */
+  skipped: boolean;
+  errors: string[];
+}
+
+/**
+ * Wrap a broadcast body in the campaign shell. The footer tells partners how
+ * to stop receiving announcements — transactional mail is unaffected.
+ */
+export function renderBroadcastEmail(args: {
+  title: string;
+  bodyHtml: string;
+  siteUrl: string;
+}): string {
+  const footer = `You are receiving this because you are registered on Project Emerge. To stop receiving announcements, open <a href="${args.siteUrl}/dashboard/settings" style="color:#666;">your settings</a>.`;
+  return shell(args.title, args.bodyHtml, footer);
+}
+
+/**
+ * Send one message per recipient, in batches. Resend's batch endpoint takes
+ * up to 100 messages per call; if a batch is rejected we retry its messages
+ * individually so one bad address cannot silence the other ninety-nine.
+ *
+ * Never throws: the caller reports counts back to the admin.
+ */
+export async function sendBroadcastEmails(
+  messages: BroadcastEmailMessage[],
+  options: { batchSize?: number; pauseMs?: number } = {},
+): Promise<BroadcastSendResult> {
+  const result: BroadcastSendResult = {
+    attempted: messages.length,
+    sent: 0,
+    failed: 0,
+    skipped: false,
+    errors: [],
+  };
+  if (messages.length === 0) return result;
+
+  const apiKey = process.env.RESEND_API_KEY;
+  const from =
+    process.env.RESEND_FROM_EMAIL ??
+    "Project Emerge <no-reply@ideallifecity.org>";
+
+  if (!apiKey) {
+    console.info(
+      `[email:skipped] RESEND_API_KEY not set. Would send "${messages[0].subject}" to ${messages.length} recipient(s).`,
+    );
+    result.skipped = true;
+    return result;
+  }
+
+  const batchSize = options.batchSize ?? 100;
+  const pauseMs = options.pauseMs ?? 600; // stay under Resend's rate limit
+
+  const { Resend } = await import("resend");
+  const resend = new Resend(apiKey);
+
+  const batches: BroadcastEmailMessage[][] = [];
+  for (let i = 0; i < messages.length; i += batchSize) {
+    batches.push(messages.slice(i, i + batchSize));
+  }
+
+  for (const [index, batch] of batches.entries()) {
+    if (index > 0 && pauseMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, pauseMs));
+    }
+    const payload = batch.map((m) => ({
+      from,
+      to: m.to,
+      subject: m.subject,
+      html: m.html,
+    }));
+
+    let batchOk = false;
+    try {
+      const { error } = await resend.batch.send(payload);
+      batchOk = !error;
+      if (error) {
+        console.error("[email:broadcast:batch]", error);
+      }
+    } catch (err) {
+      console.error("[email:broadcast:batch]", err);
+    }
+
+    if (batchOk) {
+      result.sent += batch.length;
+      continue;
+    }
+
+    // Fall back to one-by-one so a single rejected address is isolated.
+    for (const message of batch) {
+      try {
+        const { error } = await resend.emails.send({
+          from,
+          to: message.to,
+          subject: message.subject,
+          html: message.html,
+        });
+        if (error) {
+          result.failed += 1;
+          result.errors.push(`${message.to}: ${error.message}`);
+        } else {
+          result.sent += 1;
+        }
+      } catch (err) {
+        result.failed += 1;
+        result.errors.push(
+          `${message.to}: ${err instanceof Error ? err.message : "send failed"}`,
+        );
+      }
+    }
+  }
+
+  return result;
 }
