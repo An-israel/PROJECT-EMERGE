@@ -1,6 +1,7 @@
 /**
  * Hand-written database types. Kept small and focused on what the app reads.
  */
+import type { BroadcastAudience } from "@/lib/broadcast";
 import type {
   Tier,
   Plan,
@@ -8,6 +9,7 @@ import type {
   PartnershipStatus,
   Role,
   ContactMethod,
+  BroadcastStatus,
 } from "@/lib/constants";
 
 export interface Profile {
@@ -18,6 +20,8 @@ export interface Profile {
   role: Role;
   show_on_honor_roll: boolean;
   honor_roll_name: string | null;
+  /** Opted out of broadcast announcements. Transactional mail still sends. */
+  email_opt_out: boolean;
   created_at: string;
 }
 
@@ -63,6 +67,19 @@ export interface ContactLog {
   admin_id: string;
   method: ContactMethod;
   note: string | null;
+  created_at: string;
+}
+
+export interface Broadcast {
+  id: string;
+  sent_by: string | null;
+  audience: BroadcastAudience;
+  subject: string;
+  body: string;
+  recipient_count: number;
+  sent_count: number;
+  failed_count: number;
+  status: BroadcastStatus;
   created_at: string;
 }
 

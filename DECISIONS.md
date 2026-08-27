@@ -54,6 +54,35 @@ non-technical church admin and note it here.
 - Resend is optional. When `RESEND_API_KEY` is absent, every send logs the
   intended email to the server console and returns success, so no flow throws.
 
+## Broadcast email
+
+- **Audiences, not a mailing list.** There is no separate subscriber table:
+  the audience is derived live from `profiles` plus the same progress math the
+  admin dashboard uses, so "partners who are behind" is always current at the
+  moment of sending.
+- **One message per recipient**, not one message with many recipients, so
+  addresses are never disclosed to each other and `{{name}}` /
+  `{{first_name}}` can be personalised. Sent in batches of 100 via Resend's
+  batch endpoint; a rejected batch is retried one message at a time so a single
+  bad address cannot silence the rest.
+- **Plain text in, escaped HTML out.** Admins compose plain text; blank lines
+  become paragraphs. No HTML is accepted from the compose box, so a pasted
+  fragment cannot break (or inject into) the email.
+- **Consent.** Partners can untick "Email me campaign announcements"
+  (`profiles.email_opt_out`), which excludes them from every broadcast in every
+  audience. Transactional mail about their own receipts ignores the flag — it
+  is not marketing.
+- **Honest reporting.** With no API key the app cannot deliver, so the send is
+  recorded as `skipped` and the admin is told the message was only logged.
+  Partial failures are recorded as `partial` with per-address counts, rather
+  than reported as a clean success.
+- **Every send is logged** to `broadcasts` (audience, subject, body, counts,
+  who sent it), so the church has a record of what went out. Test sends to
+  yourself are not logged — they are a preview, not a broadcast.
+- **Rate limited** to 5 broadcasts per admin per 10 minutes, using the same
+  in-memory limiter as the rest of the app — a guard against a double-click or
+  a slipped finger mailing everyone twice.
+
 ## Rate limiting
 
 - Sign-up and receipt-upload endpoints use a lightweight in-memory fixed-window

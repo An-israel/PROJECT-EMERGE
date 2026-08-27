@@ -162,6 +162,7 @@ export async function updatePartnerSettingsAction(
     phone: formData.get("phone"),
     showOnHonorRoll: formData.get("showOnHonorRoll") === "on",
     honorRollName: formData.get("honorRollName") ?? "",
+    receiveAnnouncements: formData.get("receiveAnnouncements") === "on",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check your details." };
@@ -175,6 +176,7 @@ export async function updatePartnerSettingsAction(
       phone: parsed.data.phone,
       show_on_honor_roll: parsed.data.showOnHonorRoll,
       honor_roll_name: parsed.data.honorRollName || null,
+      email_opt_out: !parsed.data.receiveAnnouncements,
     })
     .eq("id", profile.id);
   if (error) return { error: "We could not save your changes." };

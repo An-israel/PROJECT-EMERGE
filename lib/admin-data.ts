@@ -3,12 +3,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { computeProgress, computeAggregate } from "@/lib/progress";
 import { todayInCampaignTZ } from "@/lib/time";
 import { getFullSettings } from "@/lib/settings";
+import type { BroadcastRecipient } from "@/lib/broadcast";
 import type {
   Partnership,
   Installment,
   Receipt,
   Profile,
   ContactLog,
+  Broadcast,
 } from "@/lib/supabase/types";
 import type { DerivedStatus } from "@/lib/constants";
 
@@ -238,6 +240,47 @@ export async function getAllUsers(): Promise<Profile[]> {
     .order("role", { ascending: true })
     .order("full_name");
   return (data ?? []) as Profile[];
+}
+
+/**
+ * Every registered user flattened into an addressable recipient, with the
+ * partnership status the audience filters key off. Admins (and any partner
+ * without a partnership) carry a null status.
+ */
+export async function getBroadcastRecipients(): Promise<BroadcastRecipient[]> {
+  const [users, overview] = await Promise.all([
+    getAllUsers(),
+    getAdminOverview(),
+  ]);
+  const statusById = new Map(
+    overview.partners.map((p) => [p.profile.id, p.status]),
+  );
+  return users.map((u) => ({
+    id: u.id,
+    name: u.full_name,
+    email: u.email,
+    role: u.role,
+    status: statusById.get(u.id) ?? null,
+    emailOptOut: u.email_opt_out ?? false,
+  }));
+}
+
+/** Most recent broadcasts, with the admin who sent each one. */
+export async function getRecentBroadcasts(
+  limit = 10,
+): Promise<Array<Broadcast & { sender_name?: string }>> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("broadcasts")
+    .select("*, sender:profiles!broadcasts_sent_by_fkey(full_name)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map(
+    (b: Broadcast & { sender?: { full_name: string } | null }) => ({
+      ...b,
+      sender_name: b.sender?.full_name,
+    }),
+  );
 }
 
 function groupBy<T>(items: T[], key: (t: T) => string): Map<string, T[]> {

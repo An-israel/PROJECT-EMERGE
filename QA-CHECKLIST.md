@@ -22,16 +22,18 @@ provisioned in this build environment.
 | 12 | Schedules always sum to the pledged amount, all tiers × plans | ✅ | `schedule.test.ts` asserts exact sum for every tier × plan |
 | 13 | Password reset screens build and are wired | ✅ | `/forgot-password` and `/reset-password` implemented against Supabase Auth |
 | 14 | Notifications send with Resend and degrade to console log without a key | ✅ | `lib/email.ts` logs and returns success when `RESEND_API_KEY` is unset |
+| 15 | Admin can email every registered user, or one group, from the app | ✅ | `/admin/broadcast`: audience picker with live counts, plain-text compose with `{{name}}` tokens, test-send to self, confirm dialog, history. `broadcast.test.ts` covers audience selection, opt-out exclusion, de-duplication, personalisation, and HTML escaping |
+| 16 | A partner who opts out of announcements is excluded from every broadcast | ✅ | `selectRecipients` drops `email_opt_out` users in all audiences (unit-tested); partners toggle it under **Dashboard → Settings**. Receipt emails ignore the flag |
 
 ## Automated verification run here
 
 - `pnpm typecheck` — passes.
 - `pnpm lint` — passes (one non-blocking `any` warning).
-- `pnpm test` — **31 unit tests pass**; 8 integration tests skip cleanly
+- `pnpm test` — **48 unit tests pass**; 8 integration tests skip cleanly
   (no Supabase configured in this environment).
 - `pnpm test:e2e` — **3 landing e2e pass**; 3 backend-dependent flows skip cleanly.
-- `pnpm build` — all 16 routes compile.
+- `pnpm build` — all 17 routes compile.
 
 To turn every 🔷 into ✅: create a disposable Supabase project, run the
-migration and `pnpm seed`, set the env vars (and `E2E_ADMIN_*`), then run
+migrations and `pnpm seed`, set the env vars (and `E2E_ADMIN_*`), then run
 `pnpm verify`. The integration and full e2e flows will then execute.
