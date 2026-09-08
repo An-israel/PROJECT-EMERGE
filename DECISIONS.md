@@ -116,6 +116,30 @@ non-technical church admin and note it here.
   list, without exporting the whole database. Numbers copy in E.164, comma
   separated — what every gateway accepts.
 
+## Receipt upload path
+
+- **The browser uploads straight to Supabase Storage; the Server Action only
+  receives the resulting object path.** Passing the file through the action
+  looked simpler but could never work in production: a Next.js Server Action
+  caps the entire request body at 1MB by default, and Vercel rejects any
+  request over 4.5MB regardless — while an ordinary phone photo of a bank
+  receipt is 2–5MB. Partners hit a framework-level rejection before our code
+  ran, so no validation message could ever explain it.
+- **The path is the permission.** Storage RLS (`receipts insert own`) already
+  restricts a partner to `{their uuid}/…`, so the browser upload is safe. The
+  server then re-derives the folder from the session and refuses any path
+  outside it, so a client cannot claim someone else's file.
+- **Size and type are still checked on the server**, read back from the stored
+  object's metadata rather than taken on trust from the browser. A file that
+  fails is deleted, not left orphaned.
+- **An empty `type` is no longer a rejection.** Some Android pickers report no
+  MIME type at all; we fall back to the file extension instead of telling a
+  partner their JPEG is not a JPEG.
+- Hero backgrounds still post through a Server Action (the branding bucket is
+  admin-only and the files are chosen on a desktop), so `bodySizeLimit` is
+  raised to 4MB and the advertised image limit lowered from 8MB to match what
+  the platform will actually carry.
+
 ## Rate limiting
 
 - Sign-up and receipt-upload endpoints use a lightweight in-memory fixed-window
