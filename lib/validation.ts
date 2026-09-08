@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TIERS, PLANS, CUSTOM_TIER_MINIMUM } from "@/lib/constants";
+import { inferMimeType } from "@/lib/upload";
 import {
   BROADCAST_AUDIENCES,
   MAX_BODY_LENGTH,
@@ -93,12 +94,18 @@ export type ReceiptInput = z.infer<typeof receiptSchema>;
 export function validateFile(file: {
   type: string;
   size: number;
+  /** Optional: used when the browser reports no type at all. */
+  name?: string;
 }): string | null {
-  if (!ALLOWED_MIME.includes(file.type as (typeof ALLOWED_MIME)[number])) {
+  const type = file.name ? inferMimeType(file.name, file.type) : file.type;
+  if (!ALLOWED_MIME.includes(type as (typeof ALLOWED_MIME)[number])) {
     return "File must be a JPEG, PNG, WEBP, or PDF.";
   }
   if (file.size > MAX_FILE_BYTES) {
-    return "File must be 5MB or smaller.";
+    return `File must be ${MAX_FILE_BYTES / (1024 * 1024)}MB or smaller.`;
+  }
+  if (file.size === 0) {
+    return "That file is empty. Please choose your receipt again.";
   }
   return null;
 }
@@ -109,7 +116,9 @@ export const ALLOWED_IMAGE_MIME = [
   "image/png",
   "image/webp",
 ] as const;
-export const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB — backgrounds can be large
+// Hero backgrounds still travel through a Server Action, so this must stay
+// under the platform request cap (Vercel rejects bodies over 4.5MB).
+export const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 4MB
 
 export function validateImageFile(file: {
   type: string;
@@ -121,7 +130,7 @@ export function validateImageFile(file: {
     return "Background must be a JPEG, PNG, or WEBP image.";
   }
   if (file.size > MAX_IMAGE_BYTES) {
-    return "Image must be 8MB or smaller.";
+    return `Image must be ${MAX_IMAGE_BYTES / (1024 * 1024)}MB or smaller.`;
   }
   return null;
 }

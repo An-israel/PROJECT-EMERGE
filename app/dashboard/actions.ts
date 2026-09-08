@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { receiptSchema, validateFile } from "@/lib/validation";
+import { objectNameFor } from "@/lib/upload";
 import { partnerSettingsSchema } from "@/lib/validation";
 import { sendReceiptReceivedEmail } from "@/lib/email";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
@@ -38,14 +39,41 @@ export async function uploadReceiptAction(
     return { error: parsed.error.issues[0]?.message ?? "Check your details." };
   }
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
+  // The browser uploads the file straight to Storage and sends us its path —
+  // a Server Action body is capped at 1MB, far below a phone photo.
+  const path = formData.get("filePath");
+  if (typeof path !== "string" || !path) {
     return { error: "Please attach your receipt file." };
   }
-  const fileError = validateFile({ type: file.type, size: file.size });
-  if (fileError) return { error: fileError };
+  const objectName = objectNameFor(path, profile.id);
+  if (!objectName) {
+    return { error: "That file does not belong to your account." };
+  }
 
   const supabase = await createClient();
+  const storage = createAdminClient().storage.from("receipts");
+
+  // Confirm the object really landed, and re-check size and type here — the
+  // browser's word is not enough on its own.
+  const { data: objects } = await storage.list(profile.id, {
+    search: objectName,
+    limit: 1,
+  });
+  const object = objects?.find((o) => o.name === objectName);
+  if (!object) {
+    return {
+      error: "We could not find your uploaded file. Please try again.",
+    };
+  }
+  const fileError = validateFile({
+    type: object.metadata?.mimetype ?? "",
+    size: object.metadata?.size ?? 0,
+    name: objectName,
+  });
+  if (fileError) {
+    await storage.remove([path]);
+    return { error: fileError };
+  }
 
   // Find the partner's partnership.
   const { data: partnership } = await supabase
@@ -54,17 +82,8 @@ export async function uploadReceiptAction(
     .eq("partner_id", profile.id)
     .maybeSingle();
   if (!partnership) {
+    await storage.remove([path]);
     return { error: "No partnership found on your account." };
-  }
-
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "dat";
-  const path = `${profile.id}/${Date.now()}-receipt.${ext}`;
-
-  const { error: uploadErr } = await supabase.storage
-    .from("receipts")
-    .upload(path, file, { contentType: file.type, upsert: false });
-  if (uploadErr) {
-    return { error: "We could not upload your file. Please try again." };
   }
 
   const { error: insertErr } = await supabase.from("receipts").insert({
@@ -79,7 +98,7 @@ export async function uploadReceiptAction(
   });
   if (insertErr) {
     // Roll back the uploaded file.
-    await supabase.storage.from("receipts").remove([path]);
+    await storage.remove([path]);
     return { error: "We could not save your receipt. Please try again." };
   }
 

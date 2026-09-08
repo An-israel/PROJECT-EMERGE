@@ -2,6 +2,13 @@
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: {
+    // Server Actions cap the whole request at 1MB by default, which silently
+    // rejected admin image uploads. Receipts no longer travel this way (the
+    // browser uploads them straight to Storage); this covers the remaining
+    // form posts. Kept under Vercel's 4.5MB request limit.
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   async headers() {
     return [
       {

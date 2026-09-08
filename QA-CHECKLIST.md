@@ -28,12 +28,15 @@ provisioned in this build environment.
 | 18 | Admin can copy all phone numbers | ✅ | **Reach everyone → Phone numbers**: copies every number in a group as `+234…` comma separated, copy-as-CSV and download-CSV with names and emails; unusable numbers reported and excluded |
 | 19 | Numbers typed in any local form reach the same person once | ✅ | `phone.test.ts` covers `0803…`, `+234…`, `234…`, `00…`, spaced and dashed forms → one E.164 value; `broadcast.test.ts` asserts the three forms de-duplicate to a single text |
 | 20 | SMS cost is visible before sending, including the ₦/emoji trap | ✅ | `smsCost()` unit-tested at the 160/153 GSM and 70/67 UCS-2 boundaries; compose box warns when a character forces UCS-2 |
+| 21 | A real phone photo (2–5MB) uploads as a receipt | ✅ | Fixed: the file now goes browser → Storage directly, so it never hits the 1MB Server Action body cap that was rejecting ordinary camera photos. Server re-checks size/type from the stored object |
+| 22 | A partner cannot attach a file from another partner's folder | ✅ | `isOwnObjectPath` rejects other UUIDs, nesting, traversal and absolute paths (unit-tested); server derives the folder from the session, never from the client |
+| 23 | A file whose MIME type the browser omits is still accepted | ✅ | `inferMimeType` falls back to the extension; unit-tested for the empty-type case |
 
 ## Automated verification run here
 
 - `pnpm typecheck` — passes.
 - `pnpm lint` — passes (one non-blocking `any` warning).
-- `pnpm test` — **64 unit tests pass**; 8 integration tests skip cleanly
+- `pnpm test` — **84 unit tests pass**; 8 integration tests skip cleanly
   (no Supabase configured in this environment).
 - `pnpm test:e2e` — **3 landing e2e pass**; 3 backend-dependent flows skip cleanly.
 - `pnpm build` — all 17 routes compile.
