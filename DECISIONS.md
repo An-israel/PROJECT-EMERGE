@@ -139,6 +139,24 @@ non-technical church admin and note it here.
   admin-only and the files are chosen on a desktop), so `bodySizeLimit` is
   raised to 4MB and the advertised image limit lowered from 8MB to match what
   the platform will actually carry.
+- **The upload is authorised by a service-role signed URL, not by storage
+  RLS.** Uploads kept failing in production even after the size fix. Every
+  other storage operation in the app (viewing a receipt, the hero background)
+  runs with the service role and worked; the upload was the only one asking
+  storage RLS to authorise a partner, and it was refused. The usual cause is
+  that the `create policy ... on storage.objects` block in `0001_init.sql`
+  never applied — many Supabase projects reject it from the SQL editor with
+  "must be owner of table objects", aborting that statement while the rest of
+  the migration succeeds. Rather than depend on a policy we cannot verify from
+  here, the server now mints a one-time signed upload URL (`objects` table
+  permissions: none) for a path it derives from the session. The partner still
+  cannot choose where the file lands, and a missing policy can no longer block
+  a receipt. `0007_receipt_storage_repair.sql` re-asserts the bucket and
+  policies anyway, and says so in a notice if the project will not allow it.
+- **Failures show the provider's own message.** The first fix replaced a
+  specific storage error with "Check your connection and try again", which
+  sent partners chasing their network while the fault was ours. The real
+  message is now shown in small print and logged to the console.
 
 ## Rate limiting
 
