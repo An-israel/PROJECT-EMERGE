@@ -187,9 +187,16 @@ it to the `SmsProvider` union — the rest of the pipeline is provider-agnostic.
 
 - **Receipt uploads go straight from the browser to Supabase Storage**, not
   through a Server Action. Server Actions cap a request body at 1MB (and
-  Vercel at 4.5MB), which is smaller than a typical phone photo. The action
-  receives only the storage path, re-checks the file's size and type from the
-  stored object, and refuses any path outside the partner's own folder.
+  Vercel at 4.5MB), which is smaller than a typical phone photo. The server
+  mints a one-time **signed upload URL** for a path it derives from the
+  session, so the upload needs no storage RLS policy and a partner still
+  cannot choose where their file lands. The action then receives only that
+  path, re-checks the stored object, and refuses any path outside the
+  partner's own folder.
+- **If uploads ever fail**, the dialog now shows the provider's own error
+  message in small print — send that text along with any report. "Bucket not
+  found" means `supabase/migrations/0007_receipt_storage_repair.sql` has not
+  been run against that project.
 - **Rate limiting** is a lightweight in-memory limiter, fine for a single
   region. To scale horizontally, back `lib/rate-limit.ts` with a shared store.
 - **Time**: "today" and all due-date math run in `Africa/Lagos`; due/transfer

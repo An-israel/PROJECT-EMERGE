@@ -16,10 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { uploadReceiptAction } from "./actions";
+import {
+  createReceiptUploadTicketAction,
+  uploadReceiptAction,
+} from "./actions";
 import { MAX_FILE_BYTES, ALLOWED_MIME, validateFile } from "@/lib/validation";
 import { createClient } from "@/lib/supabase/client";
-import { inferMimeType, receiptObjectPath } from "@/lib/upload";
+import { RECEIPT_BUCKET, inferMimeType } from "@/lib/upload";
 import { Upload } from "lucide-react";
 
 export function UploadReceiptDialog({
@@ -34,6 +37,7 @@ export function UploadReceiptDialog({
     null,
   );
   const [error, setError] = React.useState<string | null>(null);
+  const [detail, setDetail] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -49,14 +53,14 @@ export function UploadReceiptDialog({
   }
 
   /**
-   * The file goes straight from the browser to Supabase Storage (RLS lets a
-   * partner write only into their own folder). Only the resulting path is
-   * sent to the server action, so a large photo never has to fit inside a
-   * Server Action request body.
+   * The server mints a one-time signed upload URL, then the browser sends the
+   * file straight to Supabase Storage with it. Nothing large passes through a
+   * Server Action, and the upload does not depend on storage RLS policies.
    */
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setDetail(null);
 
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -78,37 +82,38 @@ export function UploadReceiptDialog({
 
     setPending(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setError("Your session has expired. Please log in again.");
+      const ticket = await createReceiptUploadTicketAction(
+        file.name,
+        file.type,
+      );
+      if (ticket.error || !ticket.path || !ticket.token) {
+        setError(ticket.error ?? "We could not start the upload.");
+        setDetail(ticket.detail ?? null);
         return;
       }
 
-      const path = receiptObjectPath(user.id, file.name, file.type);
+      const supabase = createClient();
       const { error: uploadErr } = await supabase.storage
-        .from("receipts")
-        .upload(path, file, {
+        .from(RECEIPT_BUCKET)
+        .uploadToSignedUrl(ticket.path, ticket.token, file, {
           contentType: inferMimeType(file.name, file.type) || undefined,
-          upsert: false,
         });
       if (uploadErr) {
-        setError(
-          "We could not upload your file. Check your connection and try again.",
-        );
+        // Say what actually went wrong — a vague message sends people
+        // chasing their network when the problem is on our side.
+        console.error("[receipt:upload]", uploadErr);
+        setError("We could not send your file to storage.");
+        setDetail(uploadErr.message);
         return;
       }
 
       formData.delete("file");
-      formData.set("filePath", path);
+      formData.set("filePath", ticket.path);
       const result = await uploadReceiptAction({}, formData);
 
       if (result.error) {
-        // The row was not created, so do not leave the file behind.
-        await supabase.storage.from("receipts").remove([path]);
         setError(result.error);
+        setDetail(result.detail ?? null);
         return;
       }
 
@@ -120,8 +125,10 @@ export function UploadReceiptDialog({
         description: "An admin will review it shortly.",
       });
       router.refresh();
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      console.error("[receipt:upload]", err);
+      setError("Something went wrong while uploading.");
+      setDetail(err instanceof Error ? err.message : String(err));
     } finally {
       setPending(false);
     }
@@ -146,9 +153,14 @@ export function UploadReceiptDialog({
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           {error && (
-            <p role="alert" className="text-sm text-emerge-red">
-              {error}
-            </p>
+            <div role="alert" className="space-y-1">
+              <p className="text-sm text-emerge-red">{error}</p>
+              {detail && (
+                <p className="break-words text-xs text-muted-foreground">
+                  Technical detail (send this to the church admin): {detail}
+                </p>
+              )}
+            </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

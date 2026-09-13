@@ -6,7 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { receiptSchema, validateFile } from "@/lib/validation";
-import { objectNameFor } from "@/lib/upload";
+import {
+  RECEIPT_BUCKET,
+  objectNameFor,
+  receiptObjectPath,
+} from "@/lib/upload";
 import { partnerSettingsSchema } from "@/lib/validation";
 import { sendReceiptReceivedEmail } from "@/lib/email";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
@@ -14,6 +18,55 @@ import { rateLimit, clientIp } from "@/lib/rate-limit";
 export interface ReceiptActionState {
   error?: string;
   success?: boolean;
+  /** Raw provider error, shown in small print so a failure is diagnosable. */
+  detail?: string;
+}
+
+export interface ReceiptUploadTicket {
+  path?: string;
+  token?: string;
+  error?: string;
+  detail?: string;
+}
+
+/**
+ * Mint a one-time signed upload URL for this partner's next receipt.
+ *
+ * Uses the service role deliberately: the browser then uploads without
+ * relying on storage RLS policies existing in the project. The path is built
+ * here from the session, so a partner can still only ever write to their own
+ * folder — the client does not get to choose where the file lands.
+ */
+export async function createReceiptUploadTicketAction(
+  fileName: string,
+  mimeType: string,
+): Promise<ReceiptUploadTicket> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "Please log in again." };
+
+  const hdrs = await headers();
+  const limit = rateLimit(
+    `receipt-ticket:${profile.id}:${clientIp(hdrs)}`,
+    20,
+    60_000,
+  );
+  if (!limit.ok) {
+    return { error: "Too many attempts. Please wait a minute and try again." };
+  }
+
+  const path = receiptObjectPath(profile.id, fileName ?? "", mimeType ?? "");
+  const { data, error } = await createAdminClient()
+    .storage.from(RECEIPT_BUCKET)
+    .createSignedUploadUrl(path);
+
+  if (error || !data) {
+    console.error("[receipt:signed-upload-url]", error);
+    return {
+      error: "We could not start the upload. Please tell the church admin.",
+      detail: error?.message,
+    };
+  }
+  return { path: data.path ?? path, token: data.token };
 }
 
 export async function uploadReceiptAction(
@@ -51,7 +104,7 @@ export async function uploadReceiptAction(
   }
 
   const supabase = await createClient();
-  const storage = createAdminClient().storage.from("receipts");
+  const storage = createAdminClient().storage.from(RECEIPT_BUCKET);
 
   // Confirm the object really landed, and re-check size and type here — the
   // browser's word is not enough on its own.
@@ -65,14 +118,20 @@ export async function uploadReceiptAction(
       error: "We could not find your uploaded file. Please try again.",
     };
   }
-  const fileError = validateFile({
-    type: object.metadata?.mimetype ?? "",
-    size: object.metadata?.size ?? 0,
-    name: objectName,
-  });
-  if (fileError) {
-    await storage.remove([path]);
-    return { error: fileError };
+  // Storage does not always report metadata. Only judge what it actually
+  // tells us — never reject a real receipt because a field was missing.
+  const size = object.metadata?.size;
+  const mimetype = object.metadata?.mimetype;
+  if (typeof size === "number" || typeof mimetype === "string") {
+    const fileError = validateFile({
+      type: typeof mimetype === "string" ? mimetype : "",
+      size: typeof size === "number" ? size : 1,
+      name: objectName,
+    });
+    if (fileError) {
+      await storage.remove([path]);
+      return { error: fileError };
+    }
   }
 
   // Find the partner's partnership.
@@ -136,7 +195,9 @@ export async function deletePendingReceiptAction(
   const { error } = await supabase.from("receipts").delete().eq("id", receiptId);
   if (error) return { error: "We could not remove that receipt." };
 
-  await supabase.storage.from("receipts").remove([receipt.file_path]);
+  await createAdminClient()
+    .storage.from(RECEIPT_BUCKET)
+    .remove([receipt.file_path]);
   revalidatePath("/dashboard");
   return { success: true };
 }
@@ -163,7 +224,7 @@ export async function getReceiptSignedUrl(
 
   const admin = createAdminClient();
   const { data, error } = await admin.storage
-    .from("receipts")
+    .from(RECEIPT_BUCKET)
     .createSignedUrl(receipt.file_path, 60 * 5); // 5 minutes
   if (error || !data) return { error: "Could not open the file." };
   return { url: data.signedUrl };

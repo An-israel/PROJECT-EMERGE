@@ -4,10 +4,16 @@
  * Receipts are uploaded straight from the browser to Supabase Storage, so a
  * phone photo never travels through a Server Action — those cap the whole
  * request at 1MB by default (and 4.5MB on Vercel regardless), which is far
- * below the size of an ordinary camera photo. The browser uploads the file
- * and hands the server only the resulting object path; these functions build
- * that path and let the server prove it belongs to the caller.
+ * below the size of an ordinary camera photo.
+ *
+ * The browser does not upload on its own authority. The server mints a
+ * one-time signed upload URL for a path it derives from the session, so the
+ * upload does not depend on storage RLS policies being present and correct —
+ * a partner can only ever write to the path the server chose for them.
  */
+
+/** The private bucket every receipt file lives in. */
+export const RECEIPT_BUCKET = "receipts";
 
 /** Extensions we can map back to a type when a browser reports none. */
 const EXTENSION_MIME: Record<string, string> = {
@@ -36,8 +42,7 @@ export function inferMimeType(fileName: string, reportedType: string): string {
 
 /**
  * Where a partner's receipt lives: `{userId}/{timestamp}-receipt.{ext}`.
- * The first segment must be the user's own id — that is exactly what the
- * storage RLS policy checks, so the path is the permission.
+ * Built on the server from the session, never from anything the client sends.
  */
 export function receiptObjectPath(
   userId: string,

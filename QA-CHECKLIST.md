@@ -31,6 +31,9 @@ provisioned in this build environment.
 | 21 | A real phone photo (2–5MB) uploads as a receipt | ✅ | Fixed: the file now goes browser → Storage directly, so it never hits the 1MB Server Action body cap that was rejecting ordinary camera photos. Server re-checks size/type from the stored object |
 | 22 | A partner cannot attach a file from another partner's folder | ✅ | `isOwnObjectPath` rejects other UUIDs, nesting, traversal and absolute paths (unit-tested); server derives the folder from the session, never from the client |
 | 23 | A file whose MIME type the browser omits is still accepted | ✅ | `inferMimeType` falls back to the extension; unit-tested for the empty-type case |
+| 24 | Upload works even if the storage RLS policies are missing | ✅ | The browser uploads with a service-role signed URL (`objects` permissions: none), so a policy that never applied can no longer block a receipt. `0007_receipt_storage_repair.sql` re-asserts bucket + policies separately |
+| 25 | An upload failure names the actual cause | ✅ | The provider's own error is shown in small print and logged, replacing the misleading "check your connection" text |
+| 26 | Storage metadata gaps do not reject a valid receipt | ✅ | Server-side size/type checks now run only on the fields Storage actually reports |
 
 ## Automated verification run here
 
