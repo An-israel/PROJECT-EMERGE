@@ -34,12 +34,15 @@ provisioned in this build environment.
 | 24 | Upload works even if the storage RLS policies are missing | ✅ | The browser uploads with a service-role signed URL (`objects` permissions: none), so a policy that never applied can no longer block a receipt. `0007_receipt_storage_repair.sql` re-asserts bucket + policies separately |
 | 25 | An upload failure names the actual cause | ✅ | The provider's own error is shown in small print and logged, replacing the misleading "check your connection" text |
 | 26 | Storage metadata gaps do not reject a valid receipt | ✅ | Server-side size/type checks now run only on the fields Storage actually reports |
+| 27 | Upload works on a network that cannot reach `*.supabase.co` | ✅ | The file is relayed through `/api/receipts/upload` on the app's own origin and written with the service role; the direct-to-Storage upload is now only a fallback |
+| 28 | A 4MB phone photo uploads quickly on mobile data | ✅ | Shrunk in the browser to a 1600px JPEG (usually a few hundred KB) before sending; geometry unit-tested, compression falls back to the original file on any error |
+| 29 | A PDF receipt is never re-encoded | ✅ | `shouldCompress` excludes non-images by type and by extension; unit-tested |
 
 ## Automated verification run here
 
 - `pnpm typecheck` — passes.
 - `pnpm lint` — passes (one non-blocking `any` warning).
-- `pnpm test` — **84 unit tests pass**; 8 integration tests skip cleanly
+- `pnpm test` — **95 unit tests pass**; 8 integration tests skip cleanly
   (no Supabase configured in this environment).
 - `pnpm test:e2e` — **3 landing e2e pass**; 3 backend-dependent flows skip cleanly.
 - `pnpm build` — all 17 routes compile.

@@ -23,7 +23,11 @@ import {
 import { MAX_FILE_BYTES, ALLOWED_MIME, validateFile } from "@/lib/validation";
 import { createClient } from "@/lib/supabase/client";
 import { RECEIPT_BUCKET, inferMimeType } from "@/lib/upload";
+import { compressImageFile } from "@/lib/image";
 import { Upload } from "lucide-react";
+
+/** Vercel rejects a request body over 4.5MB, so relay only below that. */
+const ROUTE_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 
 export function UploadReceiptDialog({
   triggerLabel = "Upload receipt",
@@ -53,10 +57,76 @@ export function UploadReceiptDialog({
   }
 
   /**
-   * The server mints a one-time signed upload URL, then the browser sends the
-   * file straight to Supabase Storage with it. Nothing large passes through a
-   * Server Action, and the upload does not depend on storage RLS policies.
+   * Getting the file to Storage, most reliable route first.
+   *
+   * 1. Shrink a photo in the browser — a 4MB camera shot becomes a few
+   *    hundred KB with no loss of legibility.
+   * 2. Send it to our own domain, which is reachable whenever the app itself
+   *    loads. The server writes it to Storage with the service role.
+   * 3. Only if that fails (or the file is too big to relay) upload straight
+   *    to Storage with a signed URL. Some mobile networks cannot reach
+   *    Supabase directly, which is why this is the fallback and not the
+   *    first choice.
    */
+  async function putFileInStorage(
+    file: File,
+  ): Promise<{ path?: string; error?: string; detail?: string }> {
+    const relayable = file.size <= ROUTE_UPLOAD_MAX_BYTES;
+    let relayDetail: string | undefined;
+
+    if (relayable) {
+      try {
+        const body = new FormData();
+        body.append("file", file);
+        const response = await fetch("/api/receipts/upload", {
+          method: "POST",
+          body,
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload.path) return { path: payload.path };
+
+        console.error("[receipt:relay]", response.status, payload);
+        // A rejection we understand is the answer — say so rather than
+        // retrying a route that will fail the same way.
+        if ([400, 401, 413, 429].includes(response.status)) {
+          return { error: payload.error, detail: payload.detail };
+        }
+        relayDetail = payload.detail ?? payload.error;
+      } catch (err) {
+        console.error("[receipt:relay]", err);
+        relayDetail = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    const ticket = await createReceiptUploadTicketAction(file.name, file.type);
+    if (ticket.error || !ticket.path || !ticket.token) {
+      return {
+        error: ticket.error ?? "We could not start the upload.",
+        detail: ticket.detail,
+      };
+    }
+
+    const supabase = createClient();
+    const { error: uploadErr } = await supabase.storage
+      .from(RECEIPT_BUCKET)
+      .uploadToSignedUrl(ticket.path, ticket.token, file, {
+        contentType: inferMimeType(file.name, file.type) || undefined,
+      });
+    if (uploadErr) {
+      console.error("[receipt:direct]", uploadErr);
+      return {
+        error: relayable
+          ? "We could not send your file to storage."
+          : "That file is too large to send on this connection. Please upload a smaller photo or a PDF.",
+        // Both routes failed: report what each said, so the cause is visible.
+        detail: relayDetail
+          ? `direct: ${uploadErr.message} / via site: ${relayDetail}`
+          : uploadErr.message,
+      };
+    }
+    return { path: ticket.path };
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -64,16 +134,16 @@ export function UploadReceiptDialog({
 
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const file = formData.get("file");
+    const chosen = formData.get("file");
 
-    if (!(file instanceof File) || file.size === 0) {
+    if (!(chosen instanceof File) || chosen.size === 0) {
       setError("Please attach your receipt file.");
       return;
     }
     const fileError = validateFile({
-      type: file.type,
-      size: file.size,
-      name: file.name,
+      type: chosen.type,
+      size: chosen.size,
+      name: chosen.name,
     });
     if (fileError) {
       setError(fileError);
@@ -82,33 +152,17 @@ export function UploadReceiptDialog({
 
     setPending(true);
     try {
-      const ticket = await createReceiptUploadTicketAction(
-        file.name,
-        file.type,
-      );
-      if (ticket.error || !ticket.path || !ticket.token) {
-        setError(ticket.error ?? "We could not start the upload.");
-        setDetail(ticket.detail ?? null);
-        return;
-      }
+      const file = await compressImageFile(chosen);
+      const stored = await putFileInStorage(file);
 
-      const supabase = createClient();
-      const { error: uploadErr } = await supabase.storage
-        .from(RECEIPT_BUCKET)
-        .uploadToSignedUrl(ticket.path, ticket.token, file, {
-          contentType: inferMimeType(file.name, file.type) || undefined,
-        });
-      if (uploadErr) {
-        // Say what actually went wrong — a vague message sends people
-        // chasing their network when the problem is on our side.
-        console.error("[receipt:upload]", uploadErr);
-        setError("We could not send your file to storage.");
-        setDetail(uploadErr.message);
+      if (stored.error || !stored.path) {
+        setError(stored.error ?? "We could not upload your file.");
+        setDetail(stored.detail ?? null);
         return;
       }
 
       formData.delete("file");
-      formData.set("filePath", ticket.path);
+      formData.set("filePath", stored.path);
       const result = await uploadReceiptAction({}, formData);
 
       if (result.error) {

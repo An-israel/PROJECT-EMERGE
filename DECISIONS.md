@@ -157,6 +157,27 @@ non-technical church admin and note it here.
   specific storage error with "Check your connection and try again", which
   sent partners chasing their network while the fault was ours. The real
   message is now shown in small print and logged to the console.
+- **The file is relayed through this app's own domain, not sent to Supabase
+  from the browser.** With the real error finally visible, partners reported
+  `Failed to fetch` — a browser-level failure, before Storage ever answered.
+  The same page had, seconds earlier, successfully called a Server Action on
+  our own domain, and the server itself talks to Supabase fine. So the browser
+  on those mobile networks simply cannot reach `*.supabase.co`. Nothing in the
+  app causes that (there is no CSP, and the middleware sets no headers that
+  would block a fetch) and nothing in the app can fix it — so the upload now
+  goes to `/api/receipts/upload` on our own origin, which is reachable
+  whenever the app loads at all, and the server writes to Storage with the
+  service role.
+- **A Route Handler, not a Server Action**, because Server Actions cap the
+  body at 1MB. The route is still bound by the platform request limit (4.5MB
+  on Vercel), so anything larger falls back to the direct signed-URL upload,
+  and both errors are reported together if both fail.
+- **Photos are shrunk in the browser first** — longest edge 1600px, JPEG 0.82.
+  A 4MB camera photo of a receipt becomes a few hundred KB, still perfectly
+  legible, which keeps nearly every upload on the reliable same-origin path
+  and makes it fast on a mobile connection. Compression is best-effort and
+  falls back to the original file; it must never be the reason an upload
+  fails. PDFs are sent untouched.
 
 ## Rate limiting
 

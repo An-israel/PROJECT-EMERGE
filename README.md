@@ -185,8 +185,14 @@ it to the `SmsProvider` union — the rest of the pipeline is provider-agnostic.
 
 ## Notes
 
-- **Receipt uploads go straight from the browser to Supabase Storage**, not
-  through a Server Action. Server Actions cap a request body at 1MB (and
+- **Receipt uploads are relayed through `/api/receipts/upload`** on this app's
+  own domain and written to Storage with the service role. Some mobile
+  networks cannot reach `*.supabase.co` from the browser at all (the request
+  fails as "Failed to fetch"), while this app's own domain is reachable by
+  definition. Photos are shrunk in the browser first (1600px JPEG), so nearly
+  every receipt fits the platform's 4.5MB request limit; anything larger falls
+  back to a direct signed-URL upload to Storage. Neither path uses a Server
+  Action. Server Actions cap a request body at 1MB (and
   Vercel at 4.5MB), which is smaller than a typical phone photo. The server
   mints a one-time **signed upload URL** for a path it derives from the
   session, so the upload needs no storage RLS policy and a partner still
