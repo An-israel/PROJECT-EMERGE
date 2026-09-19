@@ -6,7 +6,13 @@ import {
   objectNameFor,
   receiptObjectPath,
 } from "@/lib/upload";
-import { validateFile, MAX_FILE_BYTES } from "@/lib/validation";
+import {
+  MAX_FILE_BYTES,
+  pledgeSchema,
+  resolveAmount,
+  validateFile,
+} from "@/lib/validation";
+import { CUSTOM_TIER_MINIMUM } from "@/lib/constants";
 
 const USER = "8f2b1c44-0d3a-4c9e-9d21-6a1b2c3d4e5f";
 const OTHER = "11111111-2222-3333-4444-555555555555";
@@ -128,5 +134,56 @@ describe("validateFile", () => {
     expect(validateFile({ type: "image/jpeg", size: 0 })).toBe(
       "That file is empty. Please choose your receipt again.",
     );
+  });
+});
+
+describe("pledgeSchema", () => {
+  it("accepts a fixed tier without an amount", () => {
+    const result = pledgeSchema.safeParse({
+      tier: "500000",
+      plan: "three_months",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("requires an amount on the open-ended tier", () => {
+    const result = pledgeSchema.safeParse({
+      tier: "2000000_plus",
+      plan: "one_time",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("holds the open-ended tier to its minimum", () => {
+    expect(
+      pledgeSchema.safeParse({
+        tier: "2000000_plus",
+        plan: "one_time",
+        customAmount: CUSTOM_TIER_MINIMUM - 1,
+      }).success,
+    ).toBe(false);
+    expect(
+      pledgeSchema.safeParse({
+        tier: "2000000_plus",
+        plan: "one_time",
+        customAmount: CUSTOM_TIER_MINIMUM,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a tier or plan that is not on offer", () => {
+    expect(
+      pledgeSchema.safeParse({ tier: "12345", plan: "one_time" }).success,
+    ).toBe(false);
+    expect(
+      pledgeSchema.safeParse({ tier: "500000", plan: "weekly" }).success,
+    ).toBe(false);
+  });
+
+  it("resolves the amount from the tier, or the custom value", () => {
+    expect(resolveAmount({ tier: "500000" })).toBe(500000);
+    expect(
+      resolveAmount({ tier: "2000000_plus", customAmount: 5_000_000 }),
+    ).toBe(5_000_000);
   });
 });

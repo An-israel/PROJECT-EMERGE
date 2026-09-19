@@ -20,6 +20,7 @@ export default async function AdminLayout({
           { href: "/admin/broadcast", label: "Email" },
           { href: "/admin/honor-roll", label: "Honor roll" },
           { href: "/admin/settings", label: "Settings" },
+          { href: "/dashboard", label: "My partnership" },
         ]}
       />
       <main className="container py-8">{children}</main>

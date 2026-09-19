@@ -179,6 +179,32 @@ non-technical church admin and note it here.
   falls back to the original file; it must never be the reason an upload
   fails. PDFs are sent untouched.
 
+## Admins who also partner
+
+- **An admin is a person who may also have pledged.** Role and partnership are
+  separate things in this schema and always were; nothing needed to change
+  there. What was missing was a way in and a way to start.
+- **A way in.** The admin area had no link to `/dashboard`, and logging in
+  sends an admin to `/admin`, so an admin with a partnership had no route to
+  their own upload button — the page worked if typed by hand. The admin nav
+  now carries **My partnership**, and the partner nav carries **Admin area**
+  for admins, so moving between the two is obvious.
+- **A way to start.** Sign up creates a new auth user, so it was no help to
+  someone who already had an account: an admin seeded by `pnpm seed`, or
+  anyone promoted before they pledged, had a profile and no partnership, and
+  the dashboard told them to "contact the church" — which was the church.
+  The dashboard now offers the same amount and plan choices as sign up to any
+  account without a partnership.
+- **Created through an RPC keyed on `auth.uid()`** (`create_partnership_for_me`),
+  called with the user-scoped client, so a partnership can only ever be
+  created for the caller — the client cannot name someone else. It mirrors
+  `create_partner_signup` so the partnership and its installments are written
+  in one function body, and the existing unique constraint on `partner_id`
+  makes a second attempt a clean "you already have a partnership".
+- **Admin partnerships count like any other.** They appear under Partners, in
+  the totals, and in the behind/on-track figures — which is the point: an
+  admin who pledged and cannot record payment shows as behind forever.
+
 ## Rate limiting
 
 - Sign-up and receipt-upload endpoints use a lightweight in-memory fixed-window

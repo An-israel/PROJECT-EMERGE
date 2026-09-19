@@ -7,6 +7,7 @@ import { StatusChip } from "@/components/status-chip";
 import { ScheduleTable } from "@/components/schedule-table";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { UploadReceiptDialog } from "./upload-receipt-dialog";
+import { PledgeForm } from "./pledge-form";
 import { ReceiptHistory } from "./receipt-history";
 import { formatNaira, formatDate } from "@/lib/format";
 
@@ -38,9 +39,21 @@ export default async function DashboardPage() {
       />
 
       {!partnership || !progress ? (
-        <Card className="p-8 text-center text-muted-foreground">
-          No active partnership found on your account. Please contact the
-          church.
+        <Card>
+          <CardHeader>
+            <CardTitle>Set up your partnership</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              There is no partnership on your account yet. Choose your amount
+              and plan to start — you can then upload your receipts here like
+              every other partner.
+            </p>
+            <PledgeForm
+              oneTimeGraceDays={settings.one_time_grace_days}
+              monthlyIntervalMonths={settings.monthly_interval_months}
+            />
+          </CardContent>
         </Card>
       ) : (
         <>

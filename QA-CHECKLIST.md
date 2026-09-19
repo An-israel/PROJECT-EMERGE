@@ -37,12 +37,16 @@ provisioned in this build environment.
 | 27 | Upload works on a network that cannot reach `*.supabase.co` | ✅ | The file is relayed through `/api/receipts/upload` on the app's own origin and written with the service role; the direct-to-Storage upload is now only a fallback |
 | 28 | A 4MB phone photo uploads quickly on mobile data | ✅ | Shrunk in the browser to a 1600px JPEG (usually a few hundred KB) before sending; geometry unit-tested, compression falls back to the original file on any error |
 | 29 | A PDF receipt is never re-encoded | ✅ | `shouldCompress` excludes non-images by type and by extension; unit-tested |
+| 30 | An admin can reach their own partner dashboard | ✅ | **My partnership** added to the admin nav; **Admin area** added to the partner nav for admins, so the round trip is obvious |
+| 31 | An admin with no partnership can create one and then upload | ✅ | The dashboard offers the sign-up amount/plan choices to any account without a partnership, via `create_partnership_for_me` |
+| 32 | Nobody can create a partnership for someone else | ✅ | The RPC is `security definer` keyed on `auth.uid()` and called with the user-scoped client; the client never supplies a user id |
+| 33 | A second partnership on one account is refused cleanly | ✅ | `partnerships.partner_id` is unique; 23505 surfaces as "You already have a partnership on this account." |
 
 ## Automated verification run here
 
 - `pnpm typecheck` — passes.
 - `pnpm lint` — passes (one non-blocking `any` warning).
-- `pnpm test` — **95 unit tests pass**; 8 integration tests skip cleanly
+- `pnpm test` — **100 unit tests pass**; 8 integration tests skip cleanly
   (no Supabase configured in this environment).
 - `pnpm test:e2e` — **3 landing e2e pass**; 3 backend-dependent flows skip cleanly.
 - `pnpm build` — all 17 routes compile.
