@@ -62,6 +62,37 @@ export function resolveAmount(input: {
   return Number(input.tier);
 }
 
+/**
+ * Pledging from an account that already exists (an admin who also partners,
+ * or any profile created without a partnership). Same amount rules as sign
+ * up, without the account fields.
+ */
+export const pledgeSchema = z
+  .object({
+    tier: z.enum(TIERS),
+    plan: z.enum(PLANS),
+    customAmount: z.number().positive().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.tier === "2000000_plus") {
+      if (data.customAmount === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["customAmount"],
+          message: "Enter an amount of at least ₦2,000,000",
+        });
+      } else if (data.customAmount < CUSTOM_TIER_MINIMUM) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["customAmount"],
+          message: "Amount must be at least ₦2,000,000",
+        });
+      }
+    }
+  });
+
+export type PledgeInput = z.infer<typeof pledgeSchema>;
+
 export const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   password: z.string().min(1, "Enter your password"),

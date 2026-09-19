@@ -47,6 +47,8 @@ supabase/migrations/0003_footer_contact.sql
 supabase/migrations/0004_landing_copy.sql
 supabase/migrations/0005_broadcasts.sql  broadcast log + email opt-out
 supabase/migrations/0006_sms_broadcasts.sql  SMS channel + SMS opt-out
+supabase/migrations/0007_receipt_storage_repair.sql  receipts bucket + policies
+supabase/migrations/0008_own_partnership.sql  pledge from an existing account
 ```
 
 Apply them **in order**, either with the Supabase CLI (`supabase db push`) or by
@@ -91,6 +93,11 @@ If `SEED_ADMIN_PASSWORD` is not set, a default is used and a warning is printed
     dashboard, or for a WhatsApp broadcast list.
 
   Every send is listed under **Recent broadcasts**.
+- **Pledge as an admin**: admins often partner too. Open **My partnership** in
+  the admin menu. If you have no partnership yet, choose your amount and plan
+  there and it is created on your existing account — no second login. You can
+  then upload receipts like any other partner, and your giving counts in the
+  totals instead of leaving you permanently marked behind.
 - **Promote another admin** under **Settings → Users**. The last remaining
   admin can never be removed.
 

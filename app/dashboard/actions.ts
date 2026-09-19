@@ -5,14 +5,22 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
-import { receiptSchema, validateFile } from "@/lib/validation";
+import {
+  pledgeSchema,
+  receiptSchema,
+  resolveAmount,
+  validateFile,
+} from "@/lib/validation";
+import { getFullSettings } from "@/lib/settings";
+import { generateSchedule } from "@/lib/schedule";
+import { todayInCampaignTZ } from "@/lib/time";
 import {
   RECEIPT_BUCKET,
   objectNameFor,
   receiptObjectPath,
 } from "@/lib/upload";
 import { partnerSettingsSchema } from "@/lib/validation";
-import { sendReceiptReceivedEmail } from "@/lib/email";
+import { sendReceiptReceivedEmail, sendWelcomeEmail } from "@/lib/email";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export interface ReceiptActionState {
@@ -264,5 +272,94 @@ export async function updatePartnerSettingsAction(
   if (error) return { error: "We could not save your changes." };
 
   revalidatePath("/dashboard/settings");
+  return { success: true };
+}
+
+/**
+ * Create a partnership for the signed-in account.
+ *
+ * Sign up creates a new auth user, so it was no help to someone who already
+ * had an account — an admin seeded by `pnpm seed`, or anyone promoted to
+ * admin before they pledged. They had a profile, no partnership, and so no
+ * way to upload receipts or have their giving counted.
+ *
+ * Runs through the user-scoped client on purpose: the RPC is keyed on
+ * auth.uid(), so a partnership can only ever be created for the caller.
+ */
+export async function createOwnPartnershipAction(
+  _prev: ReceiptActionState,
+  formData: FormData,
+): Promise<ReceiptActionState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "Please log in again." };
+
+  const hdrs = await headers();
+  const limit = rateLimit(`pledge:${profile.id}:${clientIp(hdrs)}`, 5, 60_000);
+  if (!limit.ok) {
+    return { error: "Too many attempts. Please wait a minute and try again." };
+  }
+
+  const rawCustom = formData.get("customAmount");
+  const parsed = pledgeSchema.safeParse({
+    tier: formData.get("tier"),
+    plan: formData.get("plan"),
+    customAmount:
+      rawCustom && String(rawCustom).length > 0 ? Number(rawCustom) : undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check your details." };
+  }
+
+  const amount = resolveAmount(parsed.data);
+  const settings = await getFullSettings();
+  const startDate = todayInCampaignTZ();
+  const schedule = generateSchedule({
+    amount,
+    plan: parsed.data.plan,
+    startDate,
+    monthlyIntervalMonths: settings.monthly_interval_months,
+    oneTimeGraceDays: settings.one_time_grace_days,
+  });
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("create_partnership_for_me", {
+    p_tier: parsed.data.tier,
+    p_amount: amount,
+    p_plan: parsed.data.plan,
+    p_start_date: startDate,
+    p_installments: schedule.map((s) => ({
+      sequence: s.sequence,
+      due_date: s.dueDate,
+      amount: s.amount,
+    })),
+  });
+
+  if (error) {
+    if (error.code === "23505" || error.message?.includes("unique")) {
+      return { error: "You already have a partnership on this account." };
+    }
+    console.error("[pledge:create]", error);
+    return {
+      error: "We could not set up your partnership. Please try again.",
+      detail: error.message,
+    };
+  }
+
+  await sendWelcomeEmail({
+    to: profile.email,
+    name: profile.full_name,
+    amount,
+    plan: parsed.data.plan,
+    schedule,
+    bank: {
+      accountName: settings.bank_account_name,
+      accountNumber: settings.bank_account_number,
+      bankName: settings.bank_name,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/admin");
+  revalidatePath("/admin/partners");
   return { success: true };
 }
