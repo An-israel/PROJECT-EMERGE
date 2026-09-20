@@ -34,9 +34,7 @@ export async function signUpAction(
     tier: formData.get("tier"),
     plan: formData.get("plan"),
     customAmount:
-      rawCustom && String(rawCustom).length > 0
-        ? Number(rawCustom)
-        : undefined,
+      rawCustom && String(rawCustom).length > 0 ? rawCustom : undefined,
     showOnHonorRoll: formData.get("showOnHonorRoll") === "on",
     honorRollName: formData.get("honorRollName") ?? "",
   });

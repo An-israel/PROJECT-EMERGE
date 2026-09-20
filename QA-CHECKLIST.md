@@ -41,12 +41,16 @@ provisioned in this build environment.
 | 31 | An admin with no partnership can create one and then upload | ✅ | The dashboard offers the sign-up amount/plan choices to any account without a partnership, via `create_partnership_for_me` |
 | 32 | Nobody can create a partnership for someone else | ✅ | The RPC is `security definer` keyed on `auth.uid()` and called with the user-scoped client; the client never supplies a user id |
 | 33 | A second partnership on one account is refused cleanly | ✅ | `partnerships.partner_id` is unique; 23505 surfaces as "You already have a partnership on this account." |
+| 34 | An amount typed as "200,000" is accepted | ✅ | `parseAmountInput` strips separators, currency symbols and spaces; the exact failing value is a test case |
+| 35 | A bad amount never shows a raw validator message | ✅ | Number fields carry written messages; a test asserts no message matches /nan/i |
+| 36 | The admin goal accepts "100,000,000" | ✅ | Same parser on the goal and grace-day fields, which had the identical bug waiting |
+| 37 | Wrong details do not cost an upload or orphan a file | ✅ | The dialog validates the typed details before uploading; the server deletes the stored file if it rejects them |
 
 ## Automated verification run here
 
 - `pnpm typecheck` — passes.
 - `pnpm lint` — passes (one non-blocking `any` warning).
-- `pnpm test` — **100 unit tests pass**; 8 integration tests skip cleanly
+- `pnpm test` — **113 unit tests pass**; 8 integration tests skip cleanly
   (no Supabase configured in this environment).
 - `pnpm test:e2e` — **3 landing e2e pass**; 3 backend-dependent flows skip cleanly.
 - `pnpm build` — all 17 routes compile.

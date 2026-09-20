@@ -205,6 +205,28 @@ non-technical church admin and note it here.
   the totals, and in the behind/on-track figures — which is the point: an
   admin who pledged and cannot record payment shows as behind forever.
 
+## Amounts typed by people
+
+- **"200,000" is a number.** A partner entering ₦200,000 types the separators,
+  and `Number("200,000")` is NaN — which reached them as Zod's raw
+  "Expected number, received nan". Every field where a person types money or a
+  count now goes through `parseAmountInput`, which ignores currency symbols,
+  commas, spaces and non-breaking spaces before reading the value.
+- **The same leniency, everywhere.** The receipt amount, the admin goal and
+  grace-day fields, and both custom pledge amounts. The goal field had the
+  identical bug waiting: a goal typed as "100,000,000" would have failed the
+  same way.
+- **No raw validator text reaches a partner.** Number fields carry a written
+  message ("Enter the amount in figures, for example 200000"), asserted by a
+  test that fails if "nan" ever appears in a message again.
+- **Amounts are grouped as they are typed**, so the natural form is also the
+  valid one rather than something the parser merely tolerates.
+- **Details are checked before the file is uploaded.** Previously the receipt
+  was sent to Storage first and the amount parsed after, so every one of these
+  failures spent the partner's data and left an orphaned file with no receipt
+  row. The server also deletes the file if it rejects the details, since by
+  then it is already stored.
+
 ## Rate limiting
 
 - Sign-up and receipt-upload endpoints use a lightweight in-memory fixed-window

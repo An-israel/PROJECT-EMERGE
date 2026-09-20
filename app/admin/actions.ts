@@ -257,16 +257,16 @@ export async function updateAdminSettingsAction(
     scripture: formData.get("scripture"),
     heroBody: formData.get("heroBody") ?? "",
     visionBody: formData.get("visionBody") ?? "",
-    goal: Number(formData.get("goal")),
+    goal: formData.get("goal"),
     bankAccountName: formData.get("bankAccountName"),
     bankAccountNumber: formData.get("bankAccountNumber"),
     bankName: formData.get("bankName"),
     contactPhone: formData.get("contactPhone") ?? "",
     contactEmail: formData.get("contactEmail") ?? "",
     contactAddress: formData.get("contactAddress") ?? "",
-    oneTimeGraceDays: Number(formData.get("oneTimeGraceDays")),
-    monthlyIntervalMonths: Number(formData.get("monthlyIntervalMonths")),
-    behindGraceDays: Number(formData.get("behindGraceDays")),
+    oneTimeGraceDays: formData.get("oneTimeGraceDays"),
+    monthlyIntervalMonths: formData.get("monthlyIntervalMonths"),
+    behindGraceDays: formData.get("behindGraceDays"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the values." };

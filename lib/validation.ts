@@ -1,12 +1,25 @@
 import { z } from "zod";
 import { TIERS, PLANS, CUSTOM_TIER_MINIMUM } from "@/lib/constants";
 import { inferMimeType } from "@/lib/upload";
+import { parseAmountInput } from "@/lib/amount";
 import {
   BROADCAST_AUDIENCES,
   MAX_BODY_LENGTH,
   MAX_SMS_LENGTH,
   MAX_SUBJECT_LENGTH,
 } from "@/lib/broadcast";
+
+/**
+ * A money or count field typed by a person. Parsed leniently, so "200,000"
+ * works, and given a human message so a bad value never surfaces as
+ * "Expected number, received nan".
+ */
+function typedNumber(message: string) {
+  return z.preprocess(
+    (value) => parseAmountInput(value),
+    z.number({ invalid_type_error: message, required_error: message }),
+  );
+}
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB
 export const ALLOWED_MIME = [
@@ -29,7 +42,9 @@ export const signUpSchema = z
     password: z.string().min(8, "Use at least 8 characters"),
     tier: z.enum(TIERS),
     plan: z.enum(PLANS),
-    customAmount: z.number().positive().optional(),
+    customAmount: z
+      .preprocess((v) => parseAmountInput(v) ?? undefined, z.number().positive())
+      .optional(),
     showOnHonorRoll: z.boolean().default(false),
     honorRollName: z.string().trim().max(80).optional().or(z.literal("")),
   })
@@ -71,7 +86,9 @@ export const pledgeSchema = z
   .object({
     tier: z.enum(TIERS),
     plan: z.enum(PLANS),
-    customAmount: z.number().positive().optional(),
+    customAmount: z
+      .preprocess((v) => parseAmountInput(v) ?? undefined, z.number().positive())
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.tier === "2000000_plus") {
@@ -114,7 +131,9 @@ export const resetPasswordSchema = z
 
 /** Receipt upload metadata (file validated separately, client + server). */
 export const receiptSchema = z.object({
-  amount: z.number().positive("Enter an amount greater than 0"),
+  amount: typedNumber(
+    "Enter the amount in figures, for example 200000",
+  ).pipe(z.number().positive("Enter an amount greater than 0")),
   transferDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date"),
   reference: z.string().trim().max(120).optional().or(z.literal("")),
   note: z.string().trim().max(500).optional().or(z.literal("")),
@@ -212,16 +231,24 @@ export const adminSettingsSchema = z.object({
   scripture: z.string().trim().min(1),
   heroBody: z.string().trim().max(1000).optional().or(z.literal("")),
   visionBody: z.string().trim().max(2000).optional().or(z.literal("")),
-  goal: z.number().positive(),
+  goal: typedNumber("Enter the goal in figures, for example 100000000").pipe(
+    z.number().positive("Enter a goal greater than 0"),
+  ),
   bankAccountName: z.string().trim().min(1),
   bankAccountNumber: z.string().trim().min(1),
   bankName: z.string().trim().min(1),
   contactPhone: z.string().trim().max(60).optional().or(z.literal("")),
   contactEmail: z.string().trim().max(120).optional().or(z.literal("")),
   contactAddress: z.string().trim().max(200).optional().or(z.literal("")),
-  oneTimeGraceDays: z.number().int().min(0),
-  monthlyIntervalMonths: z.number().int().min(1),
-  behindGraceDays: z.number().int().min(0),
+  oneTimeGraceDays: typedNumber("Enter a number of days").pipe(
+    z.number().int("Enter a whole number of days").min(0),
+  ),
+  monthlyIntervalMonths: typedNumber("Enter a number of months").pipe(
+    z.number().int("Enter a whole number of months").min(1),
+  ),
+  behindGraceDays: typedNumber("Enter a number of days").pipe(
+    z.number().int("Enter a whole number of days").min(0),
+  ),
 });
 
 export const contactLogSchema = z.object({
