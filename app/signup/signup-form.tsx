@@ -26,6 +26,7 @@ import {
 import { generateSchedule } from "@/lib/schedule";
 import { todayInCampaignTZ } from "@/lib/time";
 import { formatNaira, formatDate } from "@/lib/format";
+import { formatAmountInput, parseAmountInput } from "@/lib/amount";
 
 interface SignUpFormProps {
   initialTier?: Tier;
@@ -48,12 +49,15 @@ export function SignUpForm({
   // from a landing-page link, pre-filled to the minimum so it's valid on load.
   const [tier, setTier] = React.useState<Tier>(initialTier ?? "2000000_plus");
   const [plan, setPlan] = React.useState<Plan>("one_time");
-  const [customAmount, setCustomAmount] =
-    React.useState<string>(String(CUSTOM_TIER_MINIMUM));
+  const [customAmount, setCustomAmount] = React.useState<string>(
+    formatAmountInput(String(CUSTOM_TIER_MINIMUM)),
+  );
   const [showHonor, setShowHonor] = React.useState(false);
 
   const isCustom = tier === "2000000_plus";
-  const amount = isCustom ? Number(customAmount || 0) : Number(tier);
+  const amount = isCustom
+    ? (parseAmountInput(customAmount) ?? 0)
+    : Number(tier);
   const customValid = !isCustom || amount >= CUSTOM_TIER_MINIMUM;
 
   const schedule = React.useMemo(() => {
@@ -128,12 +132,12 @@ export function SignUpForm({
             <Label htmlFor="customAmount">Your amount (₦)</Label>
             <Input
               id="customAmount"
-              inputMode="numeric"
+              inputMode="decimal"
               value={customAmount}
               onChange={(e) =>
-                setCustomAmount(e.target.value.replace(/[^0-9]/g, ""))
+                setCustomAmount(formatAmountInput(e.target.value))
               }
-              placeholder="2000000"
+              placeholder="2,000,000"
               aria-invalid={!customValid}
             />
             {!customValid && (

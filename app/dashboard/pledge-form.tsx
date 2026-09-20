@@ -30,6 +30,7 @@ import {
 import { generateSchedule } from "@/lib/schedule";
 import { todayInCampaignTZ } from "@/lib/time";
 import { formatNaira, formatDate } from "@/lib/format";
+import { formatAmountInput, parseAmountInput } from "@/lib/amount";
 import { HandHeart } from "lucide-react";
 
 interface Props {
@@ -50,7 +51,7 @@ export function PledgeForm({
   const [tier, setTier] = React.useState<Tier>("2000000_plus");
   const [plan, setPlan] = React.useState<Plan>("one_time");
   const [customAmount, setCustomAmount] = React.useState<string>(
-    String(CUSTOM_TIER_MINIMUM),
+    formatAmountInput(String(CUSTOM_TIER_MINIMUM)),
   );
 
   const [state, formAction, pending] = useActionState<
@@ -72,7 +73,9 @@ export function PledgeForm({
   }, [state, toast, router]);
 
   const isCustom = tier === "2000000_plus";
-  const amount = isCustom ? Number(customAmount || 0) : Number(tier);
+  const amount = isCustom
+    ? (parseAmountInput(customAmount) ?? 0)
+    : Number(tier);
   const customValid = !isCustom || amount >= CUSTOM_TIER_MINIMUM;
 
   const schedule = React.useMemo(() => {
@@ -146,9 +149,9 @@ export function PledgeForm({
           <Input
             id="customAmount"
             name="customAmount"
-            inputMode="numeric"
+            inputMode="decimal"
             value={customAmount}
-            onChange={(e) => setCustomAmount(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => setCustomAmount(formatAmountInput(e.target.value))}
             required
           />
           {!customValid && (

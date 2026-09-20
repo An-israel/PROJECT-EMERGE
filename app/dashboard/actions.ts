@@ -77,6 +77,12 @@ export async function createReceiptUploadTicketAction(
   return { path: data.path ?? path, token: data.token };
 }
 
+/** Remove a just-uploaded file when the receipt it belonged to is rejected. */
+async function discardUploadedFile(path: unknown, userId: string) {
+  if (typeof path !== "string" || !objectNameFor(path, userId)) return;
+  await createAdminClient().storage.from(RECEIPT_BUCKET).remove([path]);
+}
+
 export async function uploadReceiptAction(
   _prev: ReceiptActionState,
   formData: FormData,
@@ -91,12 +97,14 @@ export async function uploadReceiptAction(
   }
 
   const parsed = receiptSchema.safeParse({
-    amount: Number(formData.get("amount")),
+    amount: formData.get("amount"),
     transferDate: formData.get("transferDate"),
     reference: formData.get("reference") ?? "",
     note: formData.get("note") ?? "",
   });
   if (!parsed.success) {
+    // The file is already in Storage by this point; do not orphan it.
+    await discardUploadedFile(formData.get("filePath"), profile.id);
     return { error: parsed.error.issues[0]?.message ?? "Check your details." };
   }
 
@@ -304,7 +312,7 @@ export async function createOwnPartnershipAction(
     tier: formData.get("tier"),
     plan: formData.get("plan"),
     customAmount:
-      rawCustom && String(rawCustom).length > 0 ? Number(rawCustom) : undefined,
+      rawCustom && String(rawCustom).length > 0 ? rawCustom : undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check your details." };

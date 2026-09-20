@@ -20,7 +20,13 @@ import {
   createReceiptUploadTicketAction,
   uploadReceiptAction,
 } from "./actions";
-import { MAX_FILE_BYTES, ALLOWED_MIME, validateFile } from "@/lib/validation";
+import {
+  MAX_FILE_BYTES,
+  ALLOWED_MIME,
+  receiptSchema,
+  validateFile,
+} from "@/lib/validation";
+import { formatAmountInput } from "@/lib/amount";
 import { createClient } from "@/lib/supabase/client";
 import { RECEIPT_BUCKET, inferMimeType } from "@/lib/upload";
 import { compressImageFile } from "@/lib/image";
@@ -43,6 +49,8 @@ export function UploadReceiptDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [detail, setDetail] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
+  // Grouped as it is typed, so "200,000" reads naturally and still validates.
+  const [amount, setAmount] = React.useState("");
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     setClientFileError(null);
@@ -150,6 +158,19 @@ export function UploadReceiptDialog({
       return;
     }
 
+    // Check the typed details first. Uploading and then rejecting them wastes
+    // the partner's data and leaves a file behind with no receipt.
+    const details = receiptSchema.safeParse({
+      amount: formData.get("amount"),
+      transferDate: formData.get("transferDate"),
+      reference: formData.get("reference") ?? "",
+      note: formData.get("note") ?? "",
+    });
+    if (!details.success) {
+      setError(details.error.issues[0]?.message ?? "Check your details.");
+      return;
+    }
+
     setPending(true);
     try {
       const file = await compressImageFile(chosen);
@@ -172,6 +193,7 @@ export function UploadReceiptDialog({
       }
 
       form.reset();
+      setAmount("");
       setOpen(false);
       toast({
         variant: "success",
@@ -222,9 +244,11 @@ export function UploadReceiptDialog({
               <Input
                 id="amount"
                 name="amount"
-                inputMode="numeric"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(formatAmountInput(e.target.value))}
                 required
-                placeholder="50000"
+                placeholder="50,000"
               />
             </div>
             <div className="space-y-1.5">
